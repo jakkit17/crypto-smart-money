@@ -20,34 +20,34 @@ export function calculateSmartMoneyScore(
 
   let score = 0;
 
-  // Net flow magnitude
+  // Net flow magnitude — 50 points
   if (absNetFlow >= 100_000) {
-    score += 40;
+    score += 50;
   } else if (absNetFlow >= 50_000) {
-    score += 30;
+    score += 40;
   } else if (absNetFlow >= 10_000) {
-    score += 20;
+    score += 25;
   } else if (absNetFlow >= 1_000) {
     score += 10;
   }
 
-  // Repeated large transactions
+  // Repeated large transactions — 25 points
   if (input.largeTransactions >= 2) {
-    score += 20;
+    score += 25;
   }
 
-  // Repeated activity
+  // Repeated activity — 15 points
   if (input.transactions >= 3) {
-    score += 10;
+    score += 15;
   }
 
-  // Positive net flow
+  // Positive net flow — 10 points
   if (netFlowUsd >= 1_000) {
     score += 10;
   }
 
   return {
-    score: Math.min(score, 80),
+    score: Math.min(score, 100),
     netFlowUsd,
   };
 }

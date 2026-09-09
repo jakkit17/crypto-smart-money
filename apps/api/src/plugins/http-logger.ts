@@ -12,7 +12,10 @@ const SENSITIVE_HEADERS = new Set([
 function sanitizeHeaders(
   headers: Record<string, string | string[] | undefined>,
 ) {
-  const sanitized: Record<string, string | string[] | undefined> = {};
+  const sanitized: Record<
+    string,
+    string | string[] | undefined
+  > = {};
 
   for (const [key, value] of Object.entries(headers)) {
     if (SENSITIVE_HEADERS.has(key.toLowerCase())) {
@@ -29,7 +32,7 @@ function sanitizeHeaders(
 export async function registerHttpLogger(
   app: FastifyInstance,
 ) {
-  app.addHook("onResponse", async (request, reply) => {
+  app.addHook("onSend", async (request, reply, payload) => {
     try {
       const headers = sanitizeHeaders(request.headers);
 
@@ -51,9 +54,10 @@ export async function registerHttpLogger(
             ? JSON.stringify(request.body)
             : null,
 
-        response: JSON.stringify({
-            statusCode: reply.statusCode,
-            }),
+        response:
+          typeof payload === "string"
+            ? payload
+            : JSON.stringify(payload),
 
         header: JSON.stringify(headers),
       });
@@ -63,5 +67,7 @@ export async function registerHttpLogger(
         "Failed to save HTTP log",
       );
     }
+
+    return payload;
   });
 }
