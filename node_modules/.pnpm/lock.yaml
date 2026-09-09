@@ -26,6 +26,9 @@ importers:
 
   apps/indexer:
     dependencies:
+      db:
+        specifier: workspace:*
+        version: link:../../packages/db
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
