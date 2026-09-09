@@ -1,4 +1,5 @@
 import path from "node:path";
+import { eq, and } from "drizzle-orm";
 import { config } from "dotenv";
 import {
   createPublicClient,
@@ -62,6 +63,26 @@ const erc20MetadataAbi = [
 // -----------------------------------------------------------------
 
 async function saveTokenMetadata(tokenAddress: `0x${string}`) {
+  const existingToken = await db
+    .select()
+    .from(tokens)
+    .where(
+      and(
+        eq(tokens.chain, "ethereum"),
+        eq(tokens.address, tokenAddress),
+      ),
+    )
+    .limit(1);
+
+  if (existingToken.length > 0) {
+    console.log(
+      "♻️ Token metadata already exists:",
+      existingToken[0].symbol ?? tokenAddress,
+    );
+
+    return;
+  }
+
   try {
     const [name, symbol, decimals] = await Promise.all([
       client.readContract({
@@ -182,7 +203,7 @@ async function main() {
         await saveTokenMetadata(
           log.address as `0x${string}`,
         );
-        
+
         await db
           .insert(tokenTransfers)
           .values({
