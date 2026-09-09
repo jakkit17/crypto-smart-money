@@ -16,6 +16,13 @@ export const smartMoneyAlerts = pgTable(
     wallet: varchar("wallet", {
       length: 128,
     }).notNull(),
+    
+    transactionHash: varchar(
+    "transaction_hash",
+    {
+        length: 66,
+    },
+    ).notNull(),
 
     score: integer("score").notNull(),
 
@@ -30,7 +37,10 @@ export const smartMoneyAlerts = pgTable(
   },
   (table) => [
     unique(
-      "smart_money_alerts_wallet_unique",
-    ).on(table.wallet),
+        "smart_money_alerts_wallet_tx_unique",
+        ).on(
+        table.wallet,
+        table.transactionHash,
+        ),
   ],
 );

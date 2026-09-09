@@ -18,6 +18,7 @@ type SmartMoneyCandidate = {
   inflowUsd: number;
   outflowUsd: number;
   netFlowUsd: number;
+  transactionHash: string;
 };
 
 type SmartMoneyResponse = {
@@ -79,9 +80,10 @@ async function main() {
     const candidate of result.data
   ) {
     const alreadySent =
-      await hasSmartMoneyAlert(
+    await hasSmartMoneyAlert(
         candidate.wallet,
-      );
+        candidate.transactionHash,
+    );
 
     if (alreadySent) {
       console.log(
@@ -92,35 +94,39 @@ async function main() {
     }
 
     const message = [
-      "🐋 WhaleRadar Smart Money Alert",
-      "",
-      `Wallet: ${shortenAddress(
-        candidate.wallet,
-      )}`,
-      `Score: ${candidate.score}/100`,
-      `Transactions: ${candidate.transactions}`,
-      `Large transactions: ${candidate.largeTransactions}`,
-      "",
-      `💰 Inflow: ${formatUsd(
-        candidate.inflowUsd,
-      )}`,
-      `📤 Outflow: ${formatUsd(
-        candidate.outflowUsd,
-      )}`,
-      `📈 Net flow: ${formatUsd(
-        candidate.netFlowUsd,
-      )}`,
-    ].join("\n");
+        "🐋 WhaleRadar Smart Money Alert",
+        "",
+        `Wallet: ${shortenAddress(
+            candidate.wallet,
+        )}`,
+        `Transaction: ${shortenAddress(
+            candidate.transactionHash,
+        )}`,
+        `Score: ${candidate.score}/100`,
+        `Transactions: ${candidate.transactions}`,
+        `Large transactions: ${candidate.largeTransactions}`,
+        "",
+        `💰 Inflow: ${formatUsd(
+            candidate.inflowUsd,
+        )}`,
+        `📤 Outflow: ${formatUsd(
+            candidate.outflowUsd,
+        )}`,
+        `📈 Net flow: ${formatUsd(
+            candidate.netFlowUsd,
+        )}`,
+        ].join("\n");
 
     await sendTelegramMessage(
       message,
     );
 
     await saveSmartMoneyAlert(
-      candidate.wallet,
-      candidate.score,
-      candidate.netFlowUsd,
-    );
+        candidate.wallet,
+        candidate.transactionHash,
+        candidate.score,
+        candidate.netFlowUsd,
+        );
 
     console.log(
       `✅ Alert sent: ${candidate.wallet}`,

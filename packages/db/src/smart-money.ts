@@ -1,4 +1,7 @@
-import { eq } from "drizzle-orm";
+import {
+  and,
+  eq,
+} from "drizzle-orm";
 
 import {
   createPublicClient,
@@ -545,6 +548,7 @@ export async function getSmartMoneyCandidates(
 
 export async function hasSmartMoneyAlert(
   wallet: string,
+  transactionHash: string,
 ): Promise<boolean> {
   const rows = await db
     .select({
@@ -552,9 +556,15 @@ export async function hasSmartMoneyAlert(
     })
     .from(smartMoneyAlerts)
     .where(
-      eq(
-        smartMoneyAlerts.wallet,
-        wallet,
+      and(
+        eq(
+          smartMoneyAlerts.wallet,
+          wallet,
+        ),
+        eq(
+          smartMoneyAlerts.transactionHash,
+          transactionHash,
+        ),
       ),
     )
     .limit(1);
@@ -564,6 +574,7 @@ export async function hasSmartMoneyAlert(
 
 export async function saveSmartMoneyAlert(
   wallet: string,
+  transactionHash: string,
   score: number,
   netFlowUsd: number,
 ) {
@@ -571,6 +582,7 @@ export async function saveSmartMoneyAlert(
     .insert(smartMoneyAlerts)
     .values({
       wallet,
+      transactionHash,
       score,
       netFlowUsd:
         netFlowUsd.toString(),
