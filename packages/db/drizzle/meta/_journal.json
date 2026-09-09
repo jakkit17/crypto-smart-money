@@ -43,6 +43,13 @@
       "when": 1788931164028,
       "tag": "0005_normal_jazinda",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788941865673,
+      "tag": "0006_puzzling_kulan_gath",
+      "breakpoints": true
     }
   ]
 }
