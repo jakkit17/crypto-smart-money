@@ -1,5 +1,5 @@
-import { db } from "./client";
-import { wallets } from "./schema/wallets";
+import { db } from "./client.js";
+import { wallets } from "./schema/wallets.js";
 
 async function main() {
   const [wallet] = await db

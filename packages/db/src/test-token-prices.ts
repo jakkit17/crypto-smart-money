@@ -1,4 +1,4 @@
-import { db, tokenPrices } from "db";
+import { db, tokenPrices } from "./index.js";
 
 async function main() {
   const prices = [

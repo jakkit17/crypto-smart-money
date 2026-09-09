@@ -1,217 +1,198 @@
-import { and, eq } from "drizzle-orm";
-import {
-  db,
-  tokenPrices,
-  tokenTransfers,
-  tokens,
-} from "db";
+import { config } from "dotenv";
+import { createPublicClient, http } from "viem";
+import { mainnet } from "viem/chains";
+import { db, tokenTransfers, tokens, tokenPrices } from "./index.js";
+import { sql } from "drizzle-orm";
+import { classifyAddressType } from "shared";
 
-const NET_FLOW_THRESHOLD = 10_000;
+config({
+  path: "../../.env",
+});
+
+const rpcUrl = process.env.ETHEREUM_RPC_URL;
+
+if (!rpcUrl) {
+  throw new Error("ETHEREUM_RPC_URL is not set");
+}
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http(rpcUrl),
+});
+
+const LARGE_TX_THRESHOLD = 10_000;
 
 type WalletActivity = {
   wallet: string;
-  transactionHashes: Set<string>;
+  transactions: Set<string>;
   largeTransactions: Set<string>;
-  inflowUsd: number;
-  outflowUsd: number;
-  netFlowUsd: number;
+  inflow: number;
+  outflow: number;
 };
 
 async function main() {
-  const transfers = await db
+  const rows = await db
     .select({
-      transactionHash: tokenTransfers.transactionHash,
+      txHash: tokenTransfers.transactionHash,
       fromAddress: tokenTransfers.fromAddress,
       toAddress: tokenTransfers.toAddress,
       amountRaw: tokenTransfers.amountRaw,
-      tokenDecimals: tokens.decimals,
+      decimals: tokens.decimals,
       priceUsd: tokenPrices.priceUsd,
     })
     .from(tokenTransfers)
     .innerJoin(
       tokens,
-      and(
-        eq(tokens.chain, tokenTransfers.chain),
-        eq(tokens.address, tokenTransfers.tokenAddress),
-      ),
+      sql`
+        lower(${tokenTransfers.tokenAddress})
+        =
+        lower(${tokens.address})
+      `,
     )
-    .leftJoin(
+    .innerJoin(
       tokenPrices,
-      and(
-        eq(
-          tokenPrices.chain,
-          tokenTransfers.chain,
-        ),
-        eq(
-          tokenPrices.tokenAddress,
-          tokenTransfers.tokenAddress,
-        ),
-      ),
+      sql`
+        lower(${tokenTransfers.tokenAddress})
+        =
+        lower(${tokenPrices.tokenAddress})
+      `,
     );
 
-  const transactionTotals = new Map<string, number>();
+  const txTotals = new Map<string, number>();
 
-  for (const transfer of transfers) {
-    if (!transfer.priceUsd) continue;
+  for (const row of rows) {
+    const amount = Number(row.amountRaw) / 10 ** row.decimals;
+    const valueUsd = amount * Number(row.priceUsd);
 
-    const amount =
-      Number(transfer.amountRaw) /
-      10 ** transfer.tokenDecimals;
-
-    const valueUsd =
-      amount * Number(transfer.priceUsd);
-
-    if (!Number.isFinite(valueUsd)) continue;
-
-    transactionTotals.set(
-      transfer.transactionHash,
-      (transactionTotals.get(
-        transfer.transactionHash,
-      ) ?? 0) + valueUsd,
+    txTotals.set(
+      row.txHash,
+      (txTotals.get(row.txHash) ?? 0) + valueUsd,
     );
   }
 
   const wallets = new Map<string, WalletActivity>();
 
-  function getWallet(address: string) {
-    const wallet = address.toLowerCase();
+  for (const row of rows) {
+    const from = row.fromAddress.toLowerCase();
+    const to = row.toAddress.toLowerCase();
 
-    if (!wallets.has(wallet)) {
-      wallets.set(wallet, {
-        wallet,
-        transactionHashes: new Set(),
+    const amount = Number(row.amountRaw) / 10 ** row.decimals;
+    const valueUsd = amount * Number(row.priceUsd);
+
+    const txTotal = txTotals.get(row.txHash) ?? 0;
+    const isLarge = txTotal >= LARGE_TX_THRESHOLD;
+
+    if (!wallets.has(from)) {
+      wallets.set(from, {
+        wallet: from,
+        transactions: new Set(),
         largeTransactions: new Set(),
-        inflowUsd: 0,
-        outflowUsd: 0,
-        netFlowUsd: 0,
+        inflow: 0,
+        outflow: 0,
       });
     }
 
-    return wallets.get(wallet)!;
+    if (!wallets.has(to)) {
+      wallets.set(to, {
+        wallet: to,
+        transactions: new Set(),
+        largeTransactions: new Set(),
+        inflow: 0,
+        outflow: 0,
+      });
+    }
+
+    const fromWallet = wallets.get(from)!;
+    const toWallet = wallets.get(to)!;
+
+    fromWallet.transactions.add(row.txHash);
+    toWallet.transactions.add(row.txHash);
+
+    if (isLarge) {
+      fromWallet.largeTransactions.add(row.txHash);
+      toWallet.largeTransactions.add(row.txHash);
+    }
+
+    fromWallet.outflow += valueUsd;
+    toWallet.inflow += valueUsd;
   }
 
-  for (const transfer of transfers) {
-    if (!transfer.priceUsd) continue;
+  const results = [];
 
-    const amount =
-      Number(transfer.amountRaw) /
-      10 ** transfer.tokenDecimals;
+  for (const activity of wallets.values()) {
+    const code = await client.getCode({
+      address: activity.wallet as `0x${string}`,
+    });
 
-    const valueUsd =
-      amount * Number(transfer.priceUsd);
+    const addressType = classifyAddressType(code);
 
-    if (!Number.isFinite(valueUsd) || valueUsd === 0) {
+    if (addressType !== "EOA") {
       continue;
     }
 
-    const from = getWallet(transfer.fromAddress);
-    const to = getWallet(transfer.toAddress);
+    const netFlow = activity.inflow - activity.outflow;
 
-    const txTotal =
-      transactionTotals.get(
-        transfer.transactionHash,
-      ) ?? 0;
+    let score = 0;
 
-    from.transactionHashes.add(
-      transfer.transactionHash,
-    );
-
-    to.transactionHashes.add(
-      transfer.transactionHash,
-    );
-
-    if (txTotal >= NET_FLOW_THRESHOLD) {
-      from.largeTransactions.add(
-        transfer.transactionHash,
-      );
-
-      to.largeTransactions.add(
-        transfer.transactionHash,
-      );
+    // Net flow magnitude
+    if (Math.abs(netFlow) >= 10_000) {
+      score += 20;
     }
 
-    from.outflowUsd += valueUsd;
-    from.netFlowUsd -= valueUsd;
+    if (Math.abs(netFlow) >= 50_000) {
+      score += 20;
+    }
 
-    to.inflowUsd += valueUsd;
-    to.netFlowUsd += valueUsd;
+    if (Math.abs(netFlow) >= 100_000) {
+      score += 20;
+    }
+
+    // Activity
+    if (activity.largeTransactions.size >= 2) {
+      score += 15;
+    }
+
+    if (activity.transactions.size >= 3) {
+      score += 15;
+    }
+
+    // Positive net flow = stronger Smart Money signal
+    if (netFlow > 0) {
+      score += 10;
+    }
+
+    results.push({
+      ...activity,
+      netFlow,
+      score,
+    });
   }
 
-  const results = [...wallets.values()]
-    .filter(
-      (wallet) =>
-        Math.abs(wallet.netFlowUsd) >=
-        NET_FLOW_THRESHOLD,
-    )
-    .map((wallet) => {
-      let score = 0;
+  results.sort((a, b) => b.score - a.score);
 
-      // Net flow size
-      if (Math.abs(wallet.netFlowUsd) >= 10_000) {
-        score += 20;
-      }
-
-      if (Math.abs(wallet.netFlowUsd) >= 50_000) {
-        score += 20;
-      }
-
-      if (Math.abs(wallet.netFlowUsd) >= 100_000) {
-        score += 20;
-      }
-
-      // Large transaction activity
-      if (wallet.largeTransactions.size >= 2) {
-        score += 15;
-      }
-
-      // General activity
-      if (wallet.transactionHashes.size >= 3) {
-        score += 15;
-      }
-
-      // Positive net flow
-      if (wallet.netFlowUsd > 0) {
-        score += 10;
-      }
-
-      return {
-        wallet: wallet.wallet,
-        score,
-        transactions: wallet.transactionHashes.size,
-        largeTransactions:
-          wallet.largeTransactions.size,
-        inflowUsd: wallet.inflowUsd,
-        outflowUsd: wallet.outflowUsd,
-        netFlowUsd: wallet.netFlowUsd,
-      };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  console.log("🧠 Smart Money Scores");
+  console.log("🧠 Smart Money Scores v2");
   console.log("────────────────────────────────");
 
   for (const wallet of results) {
     console.log(`Score: ${wallet.score}/100`);
     console.log(`Wallet: ${wallet.wallet}`);
+    console.log(`Transactions: ${wallet.transactions.size}`);
     console.log(
-      `Transactions: ${wallet.transactions}`,
+      `Large transactions: ${wallet.largeTransactions.size}`,
     );
     console.log(
-      `Large transactions: ${wallet.largeTransactions}`,
+      `Inflow: $${wallet.inflow.toFixed(2)}`,
     );
     console.log(
-      `Inflow: $${wallet.inflowUsd.toFixed(2)}`,
+      `Outflow: $${wallet.outflow.toFixed(2)}`,
     );
     console.log(
-      `Outflow: $${wallet.outflowUsd.toFixed(2)}`,
-    );
-    console.log(
-      `Net Flow: $${wallet.netFlowUsd.toFixed(2)}`,
+      `Net Flow: $${wallet.netFlow.toFixed(2)}`,
     );
     console.log("────────────────────────────────");
   }
 
-  console.log(`Wallets scored: ${results.length}`);
+  console.log(`EOA wallets scored: ${results.length}`);
 }
 
 main().catch((error) => {

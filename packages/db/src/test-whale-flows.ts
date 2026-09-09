@@ -1,8 +1,8 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db } from "db";
-import { tokenTransfers } from "./schema/token-transfers";
-import { tokens } from "./schema/tokens";
-import { tokenPrices } from "./schema/token-prices";
+import { db } from "./index.js";
+import { tokenTransfers } from "./schema/token-transfers.js";
+import { tokens } from "./schema/tokens.js";
+import { tokenPrices } from "./schema/token-prices.js";
 import { formatTokenAmount } from "shared";
 
 const WHALE_THRESHOLD_USD = 10_000;

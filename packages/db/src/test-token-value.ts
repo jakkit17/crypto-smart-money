@@ -1,8 +1,8 @@
-import { db } from "db";
+import { db } from "./index.js";
 import { eq, and } from "drizzle-orm";
-import { tokenTransfers } from "./schema/token-transfers";
-import { tokens } from "./schema/tokens";
-import { tokenPrices } from "./schema/token-prices";
+import { tokenTransfers } from "./schema/token-transfers.js";
+import { tokens } from "./schema/tokens.js";
+import { tokenPrices } from "./schema/token-prices.js";
 import { formatTokenAmount } from "shared";
 
 async function main() {

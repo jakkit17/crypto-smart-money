@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { db, tokenPrices, tokenTransfers, tokens } from "db";
+import { db, tokenPrices, tokenTransfers, tokens } from "./index.js";
 
 const THRESHOLD_USD = 10_000;
 

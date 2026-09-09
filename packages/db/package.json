@@ -2,6 +2,8 @@
   "name": "db",
   "version": "1.0.0",
   "description": "",
+  "private": true,
+  "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -14,7 +16,8 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.9",
-    "shared": "workspace:*"
+    "shared": "workspace:*",
+    "viem": "^2.56.3"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10",
