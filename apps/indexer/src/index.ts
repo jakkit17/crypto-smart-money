@@ -2,13 +2,16 @@ import path from "node:path";
 import { config } from "dotenv";
 import {
   createPublicClient,
+  decodeEventLog,
   formatEther,
   http,
+  parseAbiItem,
 } from "viem";
 import { mainnet } from "viem/chains";
 import {
   db,
   transactions,
+  tokenTransfers,
 } from "db";
 
 config({
@@ -25,6 +28,10 @@ const client = createPublicClient({
   chain: mainnet,
   transport: http(rpcUrl),
 });
+
+const transferEvent = parseAbiItem(
+  "event Transfer(address indexed from, address indexed to, uint256 value)",
+);
 
 async function main() {
   console.log("🚀 Ethereum indexer started");
@@ -73,6 +80,52 @@ async function main() {
     console.log("   From:", tx.from);
     console.log("   To:", tx.to ?? "Contract Creation");
     console.log("   Value:", formatEther(tx.value), "ETH");
+
+    const receipt = await client.getTransactionReceipt({
+      hash: tx.hash,
+    });
+
+    for (const log of receipt.logs) {
+      try {
+        const decoded = decodeEventLog({
+          abi: [transferEvent],
+          data: log.data,
+          topics: log.topics,
+        });
+
+        if (decoded.eventName !== "Transfer") {
+          continue;
+        }
+
+        await db
+          .insert(tokenTransfers)
+          .values({
+            chain: "ethereum",
+            transactionHash: tx.hash,
+            logIndex: log.logIndex,
+            blockNumber: block.number,
+            tokenAddress: log.address,
+            fromAddress: decoded.args.from,
+            toAddress: decoded.args.to,
+            amountRaw: decoded.args.value.toString(),
+            timestamp: blockTimestamp,
+          })
+          .onConflictDoNothing({
+            target: [
+              tokenTransfers.transactionHash,
+              tokenTransfers.logIndex,
+            ],
+          });
+
+        console.log("🪙 Token transfer saved:");
+        console.log("   Token:", log.address);
+        console.log("   From:", decoded.args.from);
+        console.log("   To:", decoded.args.to);
+        console.log("   Amount:", decoded.args.value.toString());
+      } catch {
+        // Ignore logs that are not ERC-20 Transfer events
+      }
+    }
   }
 }
 
