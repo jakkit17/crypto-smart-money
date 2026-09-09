@@ -1,10 +1,13 @@
 import { eq } from "drizzle-orm";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+
 import { db } from "./client.js";
 import { tokenTransfers } from "./schema/token-transfers.js";
 import { tokens } from "./schema/tokens.js";
 import { tokenPrices } from "./schema/token-prices.js";
+import { smartMoneyAlerts } from "./schema/smart-money-alerts.js";
+
 import {
   calculateSmartMoneyScore,
   classifyAddressType,
@@ -71,7 +74,8 @@ export async function getSmartMoneyWalletActivity(
   const transactionTotals = new Map<string, number>();
 
   for (const row of rows) {
-    const amount = Number(row.amountRaw) /
+    const amount =
+      Number(row.amountRaw) /
       10 ** row.decimals;
 
     const price = Number(row.priceUsd);
@@ -91,7 +95,8 @@ export async function getSmartMoneyWalletActivity(
   >();
 
   for (const row of rows) {
-    const amount = Number(row.amountRaw) /
+    const amount =
+      Number(row.amountRaw) /
       10 ** row.decimals;
 
     const price = Number(row.priceUsd);
@@ -164,7 +169,9 @@ export async function getSmartMoneyCandidates(
   scoreThreshold = 30,
 ): Promise<SmartMoneyCandidate[]> {
   const activities =
-    await getSmartMoneyWalletActivity(thresholdUsd);
+    await getSmartMoneyWalletActivity(
+      thresholdUsd,
+    );
 
   const candidates: SmartMoneyCandidate[] = [];
 
@@ -177,22 +184,26 @@ export async function getSmartMoneyCandidates(
     }
 
     const code = await client.getCode({
-      address: activity.wallet as `0x${string}`,
+      address:
+        activity.wallet as `0x${string}`,
     });
 
-    const addressType = classifyAddressType(code);
+    const addressType =
+      classifyAddressType(code);
 
     if (addressType !== "EOA") {
       continue;
     }
 
-    const result = calculateSmartMoneyScore({
-      transactions: activity.transactions.size,
-      largeTransactions:
-        activity.largeTransactions.size,
-      inflowUsd: activity.inflow,
-      outflowUsd: activity.outflow,
-    });
+    const result =
+      calculateSmartMoneyScore({
+        transactions:
+          activity.transactions.size,
+        largeTransactions:
+          activity.largeTransactions.size,
+        inflowUsd: activity.inflow,
+        outflowUsd: activity.outflow,
+      });
 
     if (result.score < scoreThreshold) {
       continue;
@@ -202,7 +213,8 @@ export async function getSmartMoneyCandidates(
       wallet: activity.wallet,
       addressType: "EOA",
       score: result.score,
-      transactions: activity.transactions.size,
+      transactions:
+        activity.transactions.size,
       largeTransactions:
         activity.largeTransactions.size,
       inflowUsd: activity.inflow,
@@ -214,4 +226,44 @@ export async function getSmartMoneyCandidates(
   return candidates.sort(
     (a, b) => b.score - a.score,
   );
+}
+
+/**
+ * Check whether this wallet has already
+ * triggered a Smart Money alert.
+ */
+export async function hasSmartMoneyAlert(
+  wallet: string,
+): Promise<boolean> {
+  const rows = await db
+    .select({
+      id: smartMoneyAlerts.id,
+    })
+    .from(smartMoneyAlerts)
+    .where(
+      eq(
+        smartMoneyAlerts.wallet,
+        wallet,
+      ),
+    )
+    .limit(1);
+
+  return rows.length > 0;
+}
+
+/**
+ * Save a Smart Money alert after
+ * the Telegram message was sent successfully.
+ */
+export async function saveSmartMoneyAlert(
+  wallet: string,
+  score: number,
+  netFlowUsd: number,
+) {
+  await db.insert(smartMoneyAlerts).values({
+    wallet,
+    score,
+    netFlowUsd:
+      netFlowUsd.toString(),
+  });
 }

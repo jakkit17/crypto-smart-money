@@ -56,6 +56,16 @@ importers:
         version: 7.0.2
 
   apps/notifier:
+    dependencies:
+      db:
+        specifier: workspace:*
+        version: link:../../packages/db
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
     devDependencies:
       '@types/node':
         specifier: ^24.13.3
