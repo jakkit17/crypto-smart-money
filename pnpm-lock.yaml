@@ -10,9 +10,15 @@ importers:
 
   apps/api:
     dependencies:
+      db:
+        specifier: workspace:*
+        version: link:../../packages/db
       fastify:
         specifier: ^5.12.3
         version: 5.12.3
+      shared:
+        specifier: workspace:*
+        version: link:../../packages/shared
     devDependencies:
       '@types/node':
         specifier: ^24.13.3

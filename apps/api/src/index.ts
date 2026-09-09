@@ -1,12 +1,27 @@
-console.log("🚀 Telegram notifier started");
+import Fastify from "fastify";
 
-const run = async () => {
-  // TODO:
-  // 1. Get pending alerts
-  // 2. Send Telegram message
-  // 3. Mark alert as sent
+const app = Fastify({
+  logger: true,
+});
 
-  console.log("Waiting for alerts...");
+app.get("/health", async () => {
+  return {
+    status: "ok",
+  };
+});
+
+const start = async () => {
+  try {
+    await app.listen({
+      port: 3000,
+      host: "0.0.0.0",
+    });
+
+    console.log("🚀 API server started on port 3000");
+  } catch (error) {
+    app.log.error(error);
+    process.exit(1);
+  }
 };
 
-run();
+start();

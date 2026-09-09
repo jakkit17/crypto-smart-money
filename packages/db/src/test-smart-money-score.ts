@@ -125,10 +125,17 @@ async function main() {
       address: activity.wallet as `0x${string}`,
     });
 
+    const ZERO_ADDRESS =
+    "0x0000000000000000000000000000000000000000";
+
+    if (activity.wallet === ZERO_ADDRESS) {
+    continue;
+    }
+
     const addressType = classifyAddressType(code);
 
     if (addressType !== "EOA") {
-      continue;
+    continue;
     }
 
     const result = calculateSmartMoneyScore({
@@ -140,11 +147,17 @@ async function main() {
 
     const netFlow = result.netFlowUsd;
     const score = result.score;
-    
+
+    const SMART_MONEY_THRESHOLD = 30;
+
+    if (score < SMART_MONEY_THRESHOLD) {
+    continue;
+    }
+
     results.push({
-      ...activity,
-      netFlow,
-      score,
+    ...activity,
+    netFlow,
+    score,
     });
   }
 
