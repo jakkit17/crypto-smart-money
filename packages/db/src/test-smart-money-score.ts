@@ -4,6 +4,7 @@ import { mainnet } from "viem/chains";
 import { db, tokenTransfers, tokens, tokenPrices } from "./index.js";
 import { sql } from "drizzle-orm";
 import { classifyAddressType } from "shared";
+import { calculateSmartMoneyScore } from "shared";
 
 config({
   path: "../../.env",
@@ -130,37 +131,16 @@ async function main() {
       continue;
     }
 
-    const netFlow = activity.inflow - activity.outflow;
+    const result = calculateSmartMoneyScore({
+    transactions: activity.transactions.size,
+    largeTransactions: activity.largeTransactions.size,
+    inflowUsd: activity.inflow,
+    outflowUsd: activity.outflow,
+    });
 
-    let score = 0;
-
-    // Net flow magnitude
-    if (Math.abs(netFlow) >= 10_000) {
-      score += 20;
-    }
-
-    if (Math.abs(netFlow) >= 50_000) {
-      score += 20;
-    }
-
-    if (Math.abs(netFlow) >= 100_000) {
-      score += 20;
-    }
-
-    // Activity
-    if (activity.largeTransactions.size >= 2) {
-      score += 15;
-    }
-
-    if (activity.transactions.size >= 3) {
-      score += 15;
-    }
-
-    // Positive net flow = stronger Smart Money signal
-    if (netFlow > 0) {
-      score += 10;
-    }
-
+    const netFlow = result.netFlowUsd;
+    const score = result.score;
+    
     results.push({
       ...activity,
       netFlow,
