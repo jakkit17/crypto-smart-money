@@ -12,6 +12,7 @@ import {
   db,
   transactions,
   tokenTransfers,
+  tokens,
 } from "db";
 
 config({
@@ -32,6 +33,87 @@ const client = createPublicClient({
 const transferEvent = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 );
+
+const erc20MetadataAbi = [
+  {
+    name: "name",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "string" }],
+  },
+  {
+    name: "symbol",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "string" }],
+  },
+  {
+    name: "decimals",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint8" }],
+  },
+] as const;
+
+// Function to save token metadata to the database
+// -----------------------------------------------------------------
+
+async function saveTokenMetadata(tokenAddress: `0x${string}`) {
+  try {
+    const [name, symbol, decimals] = await Promise.all([
+      client.readContract({
+        address: tokenAddress,
+        abi: erc20MetadataAbi,
+        functionName: "name",
+      }),
+
+      client.readContract({
+        address: tokenAddress,
+        abi: erc20MetadataAbi,
+        functionName: "symbol",
+      }),
+
+      client.readContract({
+        address: tokenAddress,
+        abi: erc20MetadataAbi,
+        functionName: "decimals",
+      }),
+    ]);
+
+    await db
+      .insert(tokens)
+      .values({
+        chain: "ethereum",
+        address: tokenAddress,
+        name,
+        symbol,
+        decimals,
+      })
+      .onConflictDoNothing({
+        target: [
+          tokens.chain,
+          tokens.address,
+        ],
+      });
+
+    console.log("🏷️ Token metadata saved:");
+    console.log("   Address:", tokenAddress);
+    console.log("   Name:", name);
+    console.log("   Symbol:", symbol);
+    console.log("   Decimals:", decimals);
+  } catch (error) {
+    console.log(
+      "⚠️ Failed to read token metadata:",
+      tokenAddress,
+    );
+  }
+}
+
+// Main function to index the latest block and save transactions and token transfers
+// ---------------------------------------------------------------------------------------
 
 async function main() {
   console.log("🚀 Ethereum indexer started");
@@ -97,6 +179,10 @@ async function main() {
           continue;
         }
 
+        await saveTokenMetadata(
+          log.address as `0x${string}`,
+        );
+        
         await db
           .insert(tokenTransfers)
           .values({
