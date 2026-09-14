@@ -85,6 +85,13 @@
       "when": 1789380050611,
       "tag": "0011_common_emma_frost",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789382522994,
+      "tag": "0012_yummy_rogue",
+      "breakpoints": true
     }
   ]
 }

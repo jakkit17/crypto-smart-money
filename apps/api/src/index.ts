@@ -1,7 +1,9 @@
 import Fastify from "fastify";
 import { registerHttpLogger } from "./plugins/http-logger.js";
-import { smartMoneyRoutes } from "./routes/smart-money.js";
 import { getWhaleTransactions } from "db";
+
+import { smartMoneyRoutes } from "./routes/smart-money.js";
+import { usersRoutes } from "./routes/users.js";
 
 const app = Fastify({
   logger: true,
@@ -33,6 +35,7 @@ const start = async () => {
   try {
     await registerHttpLogger(app);
     await smartMoneyRoutes(app);
+    await usersRoutes(app);
 
     await app.listen({
       port: 3000,
