@@ -34,3 +34,9 @@ export async function setLastProcessedBlock(
       },
     });
 }
+
+export async function skipToBlock(
+  blockNumber: bigint,
+): Promise<void> {
+  await setLastProcessedBlock(blockNumber);
+}
