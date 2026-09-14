@@ -17,6 +17,8 @@ import {
   parseAbiItem,
 } from "viem";
 import { mainnet } from "viem/chains";
+import { isWhaleTransaction } from "./whale-detector.js";
+import { createWhaleEvent } from "./whale-event.js";
 
 config({
   path: path.resolve(process.cwd(), "../../.env"),
@@ -201,6 +203,20 @@ export async function processBlock(blockNumber: bigint) {
       formatEther(tx.value),
       "ETH",
     );
+
+    if (isWhaleTransaction(tx.value)) {
+      const whaleEvent = createWhaleEvent({
+        hash: tx.hash,
+        blockNumber: block.number,
+        fromAddress: tx.from,
+        toAddress: tx.to,
+        valueWei: tx.value,
+        valueEth: formatEther(tx.value),
+      });
+
+      console.log("\n🐋 WHALE DETECTED!");
+      console.log(whaleEvent);
+    }
   }
 
   // 2. Get all ERC-20 Transfer logs from this block

@@ -9,7 +9,8 @@
     "live": "tsx src/live-worker.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test:whale": "tsx src/test-whale.ts"
+    "test:whale": "tsx src/test-whale.ts",
+    "test:whale-detector": "tsx src/test-whale-detector.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { registerHttpLogger } from "./plugins/http-logger.js";
 import { smartMoneyRoutes } from "./routes/smart-money.js";
+import { getWhaleTransactions } from "db";
 
 const app = Fastify({
   logger: true,
@@ -9,6 +10,22 @@ const app = Fastify({
 app.get("/health", async () => {
   return {
     status: "ok",
+  };
+});
+
+app.get("/api/whales", async () => {
+  // console.log("🐋 /api/whales: start");
+
+  const whales = await getWhaleTransactions(20);
+
+  // console.log("🐋 /api/whales: query done");
+  // console.log("🐋 count:", whales.length);
+
+  return {
+    data: whales.map((whale) => ({
+      ...whale,
+      blockNumber: whale.blockNumber.toString(),
+    })),
   };
 });
 
