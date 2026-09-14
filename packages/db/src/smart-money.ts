@@ -588,3 +588,29 @@ export async function saveSmartMoneyAlert(
         netFlowUsd.toString(),
     });
 }
+
+export async function getSmartMoneyScoreForWallet(
+  wallet: string,
+): Promise<number | null> {
+  const normalizedWallet =
+    wallet.toLowerCase();
+
+  const activities =
+    await getSmartMoneyWalletActivity();
+
+  const activity =
+    activities.find(
+      (item) =>
+        item.wallet.toLowerCase() ===
+        normalizedWallet,
+    );
+
+  if (!activity) {
+    return null;
+  }
+
+  const result =
+    calculateSmartMoneyScore(activity);
+
+  return result.score;
+}

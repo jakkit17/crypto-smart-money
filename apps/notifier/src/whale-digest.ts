@@ -39,13 +39,16 @@ function formatDigest(
 
   for (const [index, alert] of alerts.entries()) {
     lines.push(
-      `${index + 1}. 🐋 ${alert.valueEth} ETH`,
-      `   📤 ${alert.fromAddress}`,
-      `   📥 ${alert.toAddress ?? "Contract Creation"}`,
-      `   🔗 ${alert.hash}`,
-      `   📦 Block: ${alert.blockNumber.toString()}`,
-      "",
-    );
+        `${index + 1}. 🐋 ${alert.valueEth} ETH`,
+        `   📤 ${alert.fromAddress}`,
+        `   📥 ${alert.toAddress ?? "Contract Creation"}`,
+        `   🧠 Smart Money Score: ${
+            alert.smartMoneyScore ?? "N/A"
+        }/100`,
+        `   🔗 ${alert.hash}`,
+        `   📦 Block: ${alert.blockNumber.toString()}`,
+        "",
+        );
   }
 
   lines.push("🌐 Ethereum Mainnet");
@@ -56,10 +59,13 @@ function formatDigest(
 function splitDigest(
   alerts: Awaited<ReturnType<typeof getPendingWhaleAlerts>>,
 ): typeof alerts[] {
-  const MAX_LENGTH = 3500;
-  const chunks: typeof alerts[] = [];
-  let current: typeof alerts = [];
-  let currentLength = 0;
+
+    const MAX_LENGTH = Number(
+        process.env.TELEGRAM_MAX_MESSAGE_LENGTH ?? "3500",
+    );
+    const chunks: typeof alerts[] = [];
+    let current: typeof alerts = [];
+    let currentLength = 0;
 
   for (const alert of alerts) {
     const alertText = [
@@ -118,31 +124,28 @@ async function processDigest(): Promise<void> {
     );
 
     for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
+        const chunk = chunks[i];
 
-    const message = formatDigest(
-        chunk,
-        i + 1,
-        chunks.length,
-    );
+        const message = formatDigest(
+            chunk,
+            i + 1,
+            chunks.length,
+        );
 
-    await sendTelegramAlert(message);
+        await sendTelegramAlert(message);
 
-    await markWhaleAlertsSent(
-        chunk.map((alert) => alert.id),
-    );
-    }
+        await markWhaleAlertsSent(
+            chunk.map((alert) => alert.id),
+        );
+        }
 
     console.log(
     `✅ Whale digest sent: ${alerts.length} alerts in ${chunks.length} messages`,
     );
 
-    console.log(
-      `✅ Whale digest sent: ${alerts.length} alerts`,
-    );
-  } catch (error) {
-    console.error("❌ Whale digest failed:");
-    console.error(error);
+    } catch (error) {
+        console.error("❌ Whale digest failed:");
+        console.error(error);
   } finally {
     isRunning = false;
   }

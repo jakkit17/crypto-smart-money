@@ -10,6 +10,7 @@ export async function enqueueWhaleAlert(event: {
   toAddress: string | null;
   valueWei: bigint;
   valueEth: string;
+  smartMoneyScore?: number | null;
 }) {
   await db
     .insert(whaleAlerts)
@@ -21,6 +22,7 @@ export async function enqueueWhaleAlert(event: {
       toAddress: event.toAddress,
       valueWei: event.valueWei.toString(),
       valueEth: event.valueEth,
+      smartMoneyScore: event.smartMoneyScore?.toString() ?? null,
     })
     .onConflictDoNothing({
       target: whaleAlerts.hash,

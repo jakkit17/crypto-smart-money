@@ -7,6 +7,7 @@ export function createWhaleEvent(params: {
   toAddress: string | null;
   valueWei: bigint;
   valueEth: string;
+  smartMoneyScore: number | null;
 }): WhaleEvent {
   return {
     chain: "ethereum",
@@ -16,5 +17,6 @@ export function createWhaleEvent(params: {
     toAddress: params.toAddress,
     valueWei: params.valueWei,
     valueEth: params.valueEth,
+    smartMoneyScore: params.smartMoneyScore,
   };
 }

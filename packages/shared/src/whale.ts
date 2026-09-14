@@ -6,4 +6,5 @@ export type WhaleEvent = {
   toAddress: string | null;
   valueWei: bigint;
   valueEth: string;
+  smartMoneyScore: number | null;
 };

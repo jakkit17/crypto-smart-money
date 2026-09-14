@@ -39,6 +39,11 @@ export const whaleAlerts = pgTable(
       scale: 18,
     }).notNull(),
 
+    smartMoneyScore: numeric("smart_money_score", {
+      precision: 3,
+      scale: 0,
+    }),
+
     createdAt: timestamp("created_at")
       .defaultNow()
       .notNull(),

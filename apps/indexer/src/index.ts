@@ -1,4 +1,5 @@
 import path from "node:path";
+import { getSmartMoneyScoreForWallet } from "db";
 
 import {
   db,
@@ -206,6 +207,11 @@ export async function processBlock(blockNumber: bigint) {
     );
 
     if (isWhaleTransaction(tx.value)) {
+      const smartMoneyScore =
+        await getSmartMoneyScoreForWallet(
+          tx.from,
+        );
+
       const whaleEvent = createWhaleEvent({
         hash: tx.hash,
         blockNumber: block.number,
@@ -213,6 +219,7 @@ export async function processBlock(blockNumber: bigint) {
         toAddress: tx.to,
         valueWei: tx.value,
         valueEth: formatEther(tx.value),
+        smartMoneyScore,
       });
 
       console.log("\n🐋 WHALE DETECTED!");

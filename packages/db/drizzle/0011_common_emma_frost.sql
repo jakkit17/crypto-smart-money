@@ -1,0 +1,1 @@
+ALTER TABLE "whale_alerts" ADD COLUMN "smart_money_score" numeric(3, 0);
