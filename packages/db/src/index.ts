@@ -12,3 +12,4 @@ export * from "./token-metadata.js";
 export * from "./client.js";
 export * from "./indexer-state.js";
 export * from "./whale.js";
+export * from "./whale-alert.js";

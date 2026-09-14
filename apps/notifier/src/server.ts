@@ -1,11 +1,13 @@
 import Fastify from "fastify";
-import { formatWhaleAlert } from "./format-whale-alert.js";
-import { sendTelegramAlert } from "./telegram.js";
+import { enqueueWhaleAlert } from "db";
 import type { WhaleEvent } from "shared";
+import { startWhaleDigest } from "./whale-digest.js";
 
 const app = Fastify({
   logger: true,
 });
+
+startWhaleDigest();
 
 app.post<{ Body: WhaleEvent }>(
   "/internal/whale",
@@ -15,9 +17,9 @@ app.post<{ Body: WhaleEvent }>(
     console.log("🐋 Whale event received:");
     console.log(event);
 
-    const message = formatWhaleAlert(event);
+    await enqueueWhaleAlert(event);
 
-    await sendTelegramAlert(message);
+    console.log("📥 Whale alert queued");
 
     return {
       success: true,
