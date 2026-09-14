@@ -6,8 +6,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/index.ts",
+    "live": "tsx src/live-worker.ts",
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:whale": "tsx src/test-whale.ts"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +23,6 @@
   "dependencies": {
     "db": "workspace:*",
     "dotenv": "^17.4.2",
-    "drizzle-orm": "^0.45.2",
     "viem": "^2.56.3"
   }
 }
