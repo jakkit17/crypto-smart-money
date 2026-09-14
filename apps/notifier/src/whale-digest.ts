@@ -1,3 +1,4 @@
+
 import { config } from "dotenv";
 
 config({
@@ -5,9 +6,10 @@ config({
 });
 
 import {
-  getPendingWhaleAlerts,
-  markWhaleAlertsSent,
+  getPendingUserWhaleAlerts,
+  markUserWhaleAlertSent,
 } from "db";
+
 import { sendTelegramAlert } from "./telegram.js";
 
 const DIGEST_INTERVAL_MINUTES = Number(
@@ -17,10 +19,18 @@ const DIGEST_INTERVAL_MINUTES = Number(
 const DIGEST_INTERVAL_MS =
   DIGEST_INTERVAL_MINUTES * 60 * 1000;
 
+const MAX_MESSAGE_LENGTH = Number(
+  process.env.TELEGRAM_MAX_MESSAGE_LENGTH ?? "3500",
+);
+
 let isRunning = false;
 
+type UserWhaleAlert = Awaited<
+  ReturnType<typeof getPendingUserWhaleAlerts>
+>[number];
+
 function formatDigest(
-  alerts: Awaited<ReturnType<typeof getPendingWhaleAlerts>>,
+  alerts: UserWhaleAlert[],
   part: number,
   totalParts: number,
 ): string {
@@ -39,16 +49,16 @@ function formatDigest(
 
   for (const [index, alert] of alerts.entries()) {
     lines.push(
-        `${index + 1}. 🐋 ${alert.valueEth} ETH`,
-        `   📤 ${alert.fromAddress}`,
-        `   📥 ${alert.toAddress ?? "Contract Creation"}`,
-        `   🧠 Smart Money Score: ${
-            alert.smartMoneyScore ?? "N/A"
-        }/100`,
-        `   🔗 ${alert.hash}`,
-        `   📦 Block: ${alert.blockNumber.toString()}`,
-        "",
-        );
+      `${index + 1}. 🐋 ${alert.valueEth} ETH`,
+      `   📤 ${alert.fromAddress}`,
+      `   📥 ${alert.toAddress ?? "Contract Creation"}`,
+      `   🧠 Smart Money Score: ${
+        alert.smartMoneyScore ?? "N/A"
+      }/100`,
+      `   🔗 ${alert.hash}`,
+      `   📦 Block: ${alert.blockNumber.toString()}`,
+      "",
+    );
   }
 
   lines.push("🌐 Ethereum Mainnet");
@@ -57,21 +67,21 @@ function formatDigest(
 }
 
 function splitDigest(
-  alerts: Awaited<ReturnType<typeof getPendingWhaleAlerts>>,
-): typeof alerts[] {
+  alerts: UserWhaleAlert[],
+): UserWhaleAlert[][] {
+  const chunks: UserWhaleAlert[][] = [];
 
-    const MAX_LENGTH = Number(
-        process.env.TELEGRAM_MAX_MESSAGE_LENGTH ?? "3500",
-    );
-    const chunks: typeof alerts[] = [];
-    let current: typeof alerts = [];
-    let currentLength = 0;
+  let current: UserWhaleAlert[] = [];
+  let currentLength = 0;
 
   for (const alert of alerts) {
     const alertText = [
-      `🐋 ${alert.valueEth} ETH`,
+      `${current.length + 1}. 🐋 ${alert.valueEth} ETH`,
       `   📤 ${alert.fromAddress}`,
       `   📥 ${alert.toAddress ?? "Contract Creation"}`,
+      `   🧠 Smart Money Score: ${
+        alert.smartMoneyScore ?? "N/A"
+      }/100`,
       `   🔗 ${alert.hash}`,
       `   📦 Block: ${alert.blockNumber.toString()}`,
       "",
@@ -79,9 +89,11 @@ function splitDigest(
 
     if (
       current.length > 0 &&
-      currentLength + alertText.length > MAX_LENGTH
+      currentLength + alertText.length >
+        MAX_MESSAGE_LENGTH
     ) {
       chunks.push(current);
+
       current = [];
       currentLength = 0;
     }
@@ -106,46 +118,92 @@ async function processDigest(): Promise<void> {
   isRunning = true;
 
   try {
-    const alerts = await getPendingWhaleAlerts(100);
+    const alerts =
+      await getPendingUserWhaleAlerts(100);
 
     if (alerts.length === 0) {
-      console.log("🐋 No pending whale alerts");
+      console.log(
+        "🐋 No pending user whale alerts",
+      );
+
       return;
     }
 
     console.log(
-      `🐋 Preparing whale digest: ${alerts.length} alerts`,
+      `🐋 Preparing user whale digest: ${alerts.length} alerts`,
     );
 
-    const chunks = splitDigest(alerts);
+    // Group alerts by Telegram chat ID.
+    const alertsByChatId = new Map<
+      string,
+      UserWhaleAlert[]
+    >();
 
-    console.log(
-    `🐋 Preparing whale digest: ${alerts.length} alerts in ${chunks.length} messages`,
-    );
+    for (const alert of alerts) {
+      if (!alert.chatId) {
+        console.log(
+          `⚠️ No Telegram chat configured for user ${alert.userId}`,
+        );
 
-    for (let i = 0; i < chunks.length; i++) {
+        continue;
+      }
+
+      const existing =
+        alertsByChatId.get(alert.chatId) ?? [];
+
+      existing.push(alert);
+
+      alertsByChatId.set(
+        alert.chatId,
+        existing,
+      );
+    }
+
+    for (const [
+      chatId,
+      userAlerts,
+    ] of alertsByChatId.entries()) {
+      const chunks = splitDigest(userAlerts);
+
+      console.log(
+        `📨 Sending ${userAlerts.length} alerts in ${chunks.length} messages`,
+      );
+
+      for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
 
-        const message = formatDigest(
-            chunk,
-            i + 1,
-            chunks.length,
-        );
-
-        await sendTelegramAlert(message);
-
-        await markWhaleAlertsSent(
-            chunk.map((alert) => alert.id),
-        );
+        if (!chunk) {
+          continue;
         }
 
+        const message = formatDigest(
+          chunk,
+          i + 1,
+          chunks.length,
+        );
+
+        await sendTelegramAlert(
+          chatId,
+          message,
+        );
+
+        for (const alert of chunk) {
+          await markUserWhaleAlertSent(
+            alert.userWhaleAlertId,
+          );
+        }
+      }
+    }
+
     console.log(
-    `✅ Whale digest sent: ${alerts.length} alerts in ${chunks.length} messages`,
+      `✅ User whale digest processed: ${alerts.length} alerts`,
+    );
+  } catch (error) {
+    console.error(
+      "❌ Whale digest failed:",
     );
 
-    } catch (error) {
-        console.error("❌ Whale digest failed:");
-        console.error(error);
+    console.error(error);
   } finally {
     isRunning = false;
   }
@@ -153,7 +211,7 @@ async function processDigest(): Promise<void> {
 
 export function startWhaleDigest(): void {
   console.log(
-    "🐋 Whale digest worker started — every 5 minutes",
+    `🐋 Whale digest worker started — every ${DIGEST_INTERVAL_MINUTES} minutes`,
   );
 
   // Run once shortly after startup.
@@ -163,3 +221,4 @@ export function startWhaleDigest(): void {
     void processDigest();
   }, DIGEST_INTERVAL_MS);
 }
+

@@ -1,7 +1,16 @@
-import { eq, isNull, asc } from "drizzle-orm";
+import {
+  eq,
+  isNull,
+  asc,
+  and,
+} from "drizzle-orm";
 
 import { db } from "./client.js";
+
 import { userWhaleAlerts } from "./schema/user-whale-alerts.js";
+import { whaleAlerts } from "./schema/whale-alerts.js";
+import { notificationConfigs } from "./schema/notification-configs.js";
+
 
 export async function createUserWhaleAlert(input: {
   userId: string;
@@ -27,17 +36,6 @@ export async function createUserWhaleAlert(input: {
   return alert ?? null;
 }
 
-export async function getPendingUserWhaleAlerts(
-  limit = 100,
-) {
-  return db
-    .select()
-    .from(userWhaleAlerts)
-    .where(isNull(userWhaleAlerts.sentAt))
-    .orderBy(asc(userWhaleAlerts.createdAt))
-    .limit(limit);
-}
-
 export async function markUserWhaleAlertSent(
   id: string,
 ) {
@@ -47,4 +45,76 @@ export async function markUserWhaleAlertSent(
       sentAt: new Date(),
     })
     .where(eq(userWhaleAlerts.id, id));
+}
+
+export async function getPendingUserWhaleAlerts(
+  limit = 100,
+) {
+  return db
+    .select({
+      userWhaleAlertId:
+        userWhaleAlerts.id,
+
+      userId:
+        userWhaleAlerts.userId,
+
+      whaleAlertId:
+        userWhaleAlerts.whaleAlertId,
+
+      smartMoneyScore:
+        userWhaleAlerts.smartMoneyScore,
+
+      createdAt:
+        userWhaleAlerts.createdAt,
+
+      hash:
+        whaleAlerts.hash,
+
+      blockNumber:
+        whaleAlerts.blockNumber,
+
+      fromAddress:
+        whaleAlerts.fromAddress,
+
+      toAddress:
+        whaleAlerts.toAddress,
+
+      valueEth:
+        whaleAlerts.valueEth,
+
+      chatId:
+        notificationConfigs.chatId,
+    })
+    .from(userWhaleAlerts)
+    .innerJoin(
+      whaleAlerts,
+      eq(
+        userWhaleAlerts.whaleAlertId,
+        whaleAlerts.id,
+      ),
+    )
+    .innerJoin(
+      notificationConfigs,
+      eq(
+        userWhaleAlerts.userId,
+        notificationConfigs.userId,
+      ),
+    )
+    .where(
+      and(
+        isNull(userWhaleAlerts.sentAt),
+        eq(
+          notificationConfigs.channel,
+          "telegram",
+        ),
+        eq(
+          notificationConfigs.enabled,
+          true,
+        ),
+      ),
+    )
+    .orderBy(
+      asc(userWhaleAlerts.createdAt),
+    )
+    .limit(limit);
 }

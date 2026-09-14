@@ -1,7 +1,8 @@
 import path from "node:path";
 import { createUserWhaleAlert } from "db";
-import { getSmartMoneyScoreForWallet } from "db";
 import { getActiveEthTrackingConfigs } from "db";
+import { getUserSmartMoneyRuleForScore } from "db";
+import { getSmartMoneyScoreForWalletWithRule } from "db";
 import {
   getMatchingUserTrackingConfigs,
 } from "./user-whale-detector.js";
@@ -17,13 +18,11 @@ import {
 import { config } from "dotenv";
 import {
   createPublicClient,
-  decodeEventLog,
   formatEther,
   http,
   parseAbiItem,
 } from "viem";
 import { mainnet } from "viem/chains";
-import { isWhaleTransaction } from "./whale-detector.js";
 import { createWhaleEvent } from "./whale-event.js";
 import { notifyWhale } from "./notify-whale.js";
 
@@ -174,6 +173,9 @@ export async function processBlock(blockNumber: bigint) {
   console.log("⛽ Gas limit:", block.gasLimit.toString());
   console.log("🔢 Transactions:", block.transactions.length);
 
+const userTrackingConfigs =
+  await getActiveEthTrackingConfigs();
+  
   console.log(
     `\n📋 Saving ${block.transactions.length} transactions...\n`,
   );
@@ -211,72 +213,115 @@ export async function processBlock(blockNumber: bigint) {
       "ETH",
     );
 
- const userTrackingConfigs =
-  await getActiveEthTrackingConfigs();
 
-  const matchingUsers =
-    getMatchingUserTrackingConfigs(
-      tx.value,
-      userTrackingConfigs,
-    );
-
-  if (matchingUsers.length > 0) {
-    const smartMoneyScore =
-      await getSmartMoneyScoreForWallet(
-        tx.from,
+    const matchingUsers =
+      getMatchingUserTrackingConfigs(
+        tx.value,
+        userTrackingConfigs,
       );
 
-    const whaleEvent = createWhaleEvent({
-      hash: tx.hash,
-      blockNumber: block.number,
-      fromAddress: tx.from,
-      toAddress: tx.to,
-      valueWei: tx.value,
-      valueEth: formatEther(tx.value),
-      smartMoneyScore,
-    });
+    if (matchingUsers.length > 0) {
+      const whaleEvent = createWhaleEvent({
+        hash: tx.hash,
+        blockNumber: block.number,
+        fromAddress: tx.from,
+        toAddress: tx.to,
+        valueWei: tx.value,
+        valueEth: formatEther(tx.value),
+        smartMoneyScore: null,
+      });
 
-    console.log("\n🐋 WHALE DETECTED!");
-    console.log(whaleEvent);
+      console.log("\n🐋 WHALE DETECTED!");
+      console.log(whaleEvent);
 
-    console.log(
-      `👤 Matching users: ${matchingUsers.length}`,
-    );
-
-    for (const user of matchingUsers) {
       console.log(
-        `   - ${user.userId}: ≥ ${user.threshold} ETH`,
+        `👤 Matching users: ${matchingUsers.length}`,
       );
-    }
 
-    const whaleAlertId = await notifyWhale(whaleEvent);
+      const userScores = new Map<
+        string,
+        number | null
+      >();
 
-    if (whaleAlertId) {
       for (const user of matchingUsers) {
-        await createUserWhaleAlert({
-          userId: user.userId,
-          whaleAlertId,
+        const rule =
+          await getUserSmartMoneyRuleForScore(
+            user.userId,
+          );
+
+        const smartMoneyScore = rule
+          ? await getSmartMoneyScoreForWalletWithRule(
+              tx.from,
+              rule,
+            )
+          : null;
+
+        userScores.set(
+          user.userId,
           smartMoneyScore,
-        });
+        );
+
+        console.log(
+          `🧠 ${user.userId} Smart Money Score: ${
+            smartMoneyScore ?? "N/A"
+          }`,
+        );
+
+// ==============================
+// 🧠 SMART MONEY DEBUG
+// ==============================
+// User ID: b869ca1e-fd77-418c-bd62-c4f5dfe67c11
+// Wallet: 0xa772ec0009c6396c475b47f1d207d36a4601caee
+// Rule: {
+//   netFlowWeight: 50,
+//   largeTransactionsWeight: 25,
+//   activityWeight: 15,
+//   positiveFlowWeight: 10,
+//   netFlowThresholdUsd: 10000,
+//   largeTransactionCount: 2,
+//   activityCount: 3,
+//   positiveFlowThresholdUsd: 1000
+// }
+// Score: null
+// ==============================
+
+        console.log(
+          `   - ${user.userId}: ≥ ${user.threshold} ETH`,
+        );
       }
 
-      console.log(
-        `📌 Created ${matchingUsers.length} user whale alerts`,
-      );
+      const whaleAlertId =
+        await notifyWhale(whaleEvent);
+
+      if (whaleAlertId) {
+        for (const user of matchingUsers) {
+          await createUserWhaleAlert({
+            userId: user.userId,
+            whaleAlertId,
+            smartMoneyScore:
+              userScores.get(user.userId) ?? null,
+          });
+        }
+
+        console.log(
+          `📌 Created ${matchingUsers.length} user whale alerts`,
+        );
+      }
     }
+
   }
-  }
+  
 
   // 2. Get all ERC-20 Transfer logs from this block
   console.log(
-    `\n🔎 Fetching ERC-20 Transfer logs for block ${blockNumber}...\n`,
+    `\n🔎 Fetching ERC-20 Transfer logs for block ${block.number}...\n`,
   );
 
   const logs = await client.getLogs({
     address: undefined,
     event: transferEvent,
-    fromBlock: blockNumber,
-    toBlock: blockNumber,
+    fromBlock: block.number,
+    toBlock: block.number,
   });
 
   const tokenAddresses = new Set<string>();

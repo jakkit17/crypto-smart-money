@@ -23,6 +23,9 @@ import {
   classifyAddressType,
 } from "shared";
 
+import type { SmartMoneyRule } from "shared";
+import { calculateSmartMoneyScoreWithRule } from "shared";
+
 const rpcUrl = process.env.ETHEREUM_RPC_URL;
 
 if (!rpcUrl) {
@@ -611,6 +614,34 @@ export async function getSmartMoneyScoreForWallet(
 
   const result =
     calculateSmartMoneyScore(activity);
+
+  return result.score;
+}
+
+export async function getSmartMoneyScoreForWalletWithRule(
+  wallet: string,
+  rule: SmartMoneyRule,
+): Promise<number | null> {
+  const normalizedWallet = wallet.toLowerCase();
+
+  const activities =
+    await getSmartMoneyWalletActivity();
+
+  const activity = activities.find(
+    (item) =>
+      item.wallet.toLowerCase() ===
+      normalizedWallet,
+  );
+
+  if (!activity) {
+    return null;
+  }
+
+  const result =
+    calculateSmartMoneyScoreWithRule(
+      activity,
+      rule,
+    );
 
   return result.score;
 }

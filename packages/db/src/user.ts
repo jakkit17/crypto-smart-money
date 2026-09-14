@@ -224,3 +224,70 @@ export async function getActiveEthTrackingConfigs() {
       ),
     );
 }
+
+export async function getUserSmartMoneyRule(
+  userId: string,
+) {
+  const [rule] = await db
+    .select()
+    .from(userSmartMoneyRules)
+    .where(eq(userSmartMoneyRules.userId, userId))
+    .limit(1);
+
+  return rule ?? null;
+}
+
+export async function getUserSmartMoneyRuleForScore(
+  userId: string,
+) {
+  const rule = await getUserSmartMoneyRule(userId);
+
+  if (!rule || !rule.enabled) {
+    return null;
+  }
+
+  return {
+    netFlowWeight: rule.netFlowWeight,
+    largeTransactionsWeight:
+      rule.largeTransactionsWeight,
+    activityWeight: rule.activityWeight,
+    positiveFlowWeight:
+      rule.positiveFlowWeight,
+
+    netFlowThresholdUsd:
+      Number(rule.netFlowThresholdUsd),
+
+    largeTransactionCount:
+      rule.largeTransactionCount,
+
+    activityCount:
+      rule.activityCount,
+
+    positiveFlowThresholdUsd:
+      Number(rule.positiveFlowThresholdUsd),
+  };
+}
+
+export async function getTelegramNotificationForUser(
+  userId: string,
+) {
+  const [notification] = await db
+    .select()
+    .from(notificationConfigs)
+    .where(
+      and(
+        eq(notificationConfigs.userId, userId),
+        eq(
+          notificationConfigs.channel,
+          "telegram",
+        ),
+        eq(
+          notificationConfigs.enabled,
+          true,
+        ),
+      ),
+    )
+    .limit(1);
+
+  return notification ?? null;
+}

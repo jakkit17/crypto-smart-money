@@ -5,19 +5,31 @@ config({
 });
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
-const chatId = process.env.TELEGRAM_CHAT_ID;
 
 if (!botToken) {
   throw new Error("TELEGRAM_BOT_TOKEN is not set");
 }
 
-if (!chatId) {
-  throw new Error("TELEGRAM_CHAT_ID is not set");
-}
-
 export async function sendTelegramAlert(
-  message: string,
+  chatIdOrMessage: string,
+  message?: string,
 ): Promise<void> {
+  const chatId =
+    message === undefined
+      ? process.env.TELEGRAM_CHAT_ID
+      : chatIdOrMessage;
+
+  const text =
+    message === undefined
+      ? chatIdOrMessage
+      : message;
+
+  if (!chatId) {
+    throw new Error(
+      "Telegram chat ID is not configured",
+    );
+  }
+
   const response = await fetch(
     `https://api.telegram.org/bot${botToken}/sendMessage`,
     {
@@ -27,7 +39,7 @@ export async function sendTelegramAlert(
       },
       body: JSON.stringify({
         chat_id: chatId,
-        text: message,
+        text,
       }),
     },
   );

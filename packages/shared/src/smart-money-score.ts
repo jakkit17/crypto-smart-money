@@ -63,3 +63,49 @@ export function calculateSmartMoneyScore(
     netFlowUsd,
   };
 }
+
+export function calculateSmartMoneyScoreWithRule(
+  input: SmartMoneyInput,
+  rule: SmartMoneyRule,
+): SmartMoneyScore {
+  const netFlowUsd =
+    input.inflowUsd - input.outflowUsd;
+
+  const absNetFlow = Math.abs(netFlowUsd);
+
+  let score = 0;
+
+  // Net flow magnitude
+  if (absNetFlow >= rule.netFlowThresholdUsd) {
+    score += rule.netFlowWeight;
+  }
+
+  // Repeated large transactions
+  if (
+    input.largeTransactions >=
+    rule.largeTransactionCount
+  ) {
+    score += rule.largeTransactionsWeight;
+  }
+
+  // Repeated activity
+  if (
+    input.transactions >=
+    rule.activityCount
+  ) {
+    score += rule.activityWeight;
+  }
+
+  // Positive net flow
+  if (
+    netFlowUsd >=
+    rule.positiveFlowThresholdUsd
+  ) {
+    score += rule.positiveFlowWeight;
+  }
+
+  return {
+    score: Math.min(score, 100),
+    netFlowUsd,
+  };
+}
