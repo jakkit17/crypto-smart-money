@@ -12,7 +12,10 @@
     "typecheck": "tsc --noEmit",
     "test:whale": "tsx src/test-whale.ts",
     "test:whale-detector": "tsx src/test-whale-detector.ts",
-    "test:notify": "tsx src/test-notify-whale.ts"
+    "test:notify": "tsx src/test-notify-whale.ts",
+    "test:user-tracking": "tsx src/test-user-tracking.ts",
+    "test:user-whale-detector": "tsx src/test-user-whale-detector.ts",
+    "test:user-whale-alert": "tsx src/test-user-whale-alert.ts"
   },
   "keywords": [],
   "author": "",

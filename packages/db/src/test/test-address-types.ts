@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
-import { db, tokenTransfers } from "./index.js";
+import { db, tokenTransfers } from "../index.js";
 import { sql } from "drizzle-orm";
 
 config({

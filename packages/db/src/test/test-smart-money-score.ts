@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
-import { db, tokenTransfers, tokens, tokenPrices } from "./index.js";
+import { db, tokenTransfers, tokens, tokenPrices } from "../index.js";
 import { sql } from "drizzle-orm";
 import { classifyAddressType } from "shared";
 import { calculateSmartMoneyScore } from "shared";

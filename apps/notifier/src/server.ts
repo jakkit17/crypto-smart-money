@@ -17,14 +17,16 @@ app.post<{ Body: WhaleEvent }>(
     console.log("🐋 Whale event received:");
     console.log(event);
 
-    await enqueueWhaleAlert(event);
+    const whaleAlert = await enqueueWhaleAlert(event);
 
     console.log("📥 Whale alert queued");
 
     return {
-      success: true,
+    success: true,
+    whaleAlertId: whaleAlert?.id ?? null,
     };
-  },
+
+    },
 );
 
 const port = Number(

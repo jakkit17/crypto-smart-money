@@ -1,7 +1,7 @@
 import { desc, eq, and } from "drizzle-orm";
-import { db } from "./client.js";
-import { tokenTransfers } from "./schema/token-transfers.js";
-import { tokens } from "./schema/tokens.js";
+import { db } from "../client.js";
+import { tokenTransfers } from "../schema/token-transfers.js";
+import { tokens } from "../schema/tokens.js";
 import { formatTokenAmount } from "shared";
 
 

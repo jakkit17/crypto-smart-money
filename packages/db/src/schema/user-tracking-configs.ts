@@ -65,3 +65,6 @@ export const userTrackingConfigs =
       ),
     ],
   );
+
+  export type UserTrackingConfig =
+  typeof userTrackingConfigs.$inferSelect;

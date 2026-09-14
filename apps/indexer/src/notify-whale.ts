@@ -15,20 +15,7 @@ const NOTIFIER_URL =
 
 export async function notifyWhale(
   event: WhaleEvent,
-): Promise<void> {
-
-    const now = Date.now();
-
-    if (
-    now - lastNotificationAt <
-    NOTIFICATION_COOLDOWN_MS
-    ) {
-    console.log("⏳ Whale alert skipped: cooldown");
-    return;
-    }
-
-    lastNotificationAt = now;
-
+): Promise<string | null> {
   const response = await fetch(
     `${NOTIFIER_URL}/internal/whale`,
     {
@@ -52,5 +39,12 @@ export async function notifyWhale(
     );
   }
 
+  const result = (await response.json()) as {
+    success: boolean;
+    whaleAlertId: string | null;
+  };
+
   console.log("📨 Whale event sent to notifier");
+
+  return result.whaleAlertId;
 }

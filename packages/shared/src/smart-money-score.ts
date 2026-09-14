@@ -10,6 +10,18 @@ export type SmartMoneyScore = {
   netFlowUsd: number;
 };
 
+export type SmartMoneyRule = {
+  netFlowWeight: number;
+  largeTransactionsWeight: number;
+  activityWeight: number;
+  positiveFlowWeight: number;
+
+  netFlowThresholdUsd: number;
+  largeTransactionCount: number;
+  activityCount: number;
+  positiveFlowThresholdUsd: number;
+};
+
 export function calculateSmartMoneyScore(
   input: SmartMoneyInput,
 ): SmartMoneyScore {

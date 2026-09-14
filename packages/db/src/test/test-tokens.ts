@@ -1,6 +1,6 @@
 import { desc } from "drizzle-orm";
-import { db } from "./client.js";
-import { tokens } from "./schema/tokens.js";
+import { db } from "../client.js";
+import { tokens } from "../schema/tokens.js";
 
 async function main() {
   const rows = await db

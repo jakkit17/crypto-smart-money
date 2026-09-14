@@ -12,7 +12,7 @@ export async function enqueueWhaleAlert(event: {
   valueEth: string;
   smartMoneyScore?: number | null;
 }) {
-  await db
+  const [alert] = await db
     .insert(whaleAlerts)
     .values({
       chain: event.chain,
@@ -22,11 +22,15 @@ export async function enqueueWhaleAlert(event: {
       toAddress: event.toAddress,
       valueWei: event.valueWei.toString(),
       valueEth: event.valueEth,
-      smartMoneyScore: event.smartMoneyScore?.toString() ?? null,
+      smartMoneyScore:
+        event.smartMoneyScore?.toString() ?? null,
     })
     .onConflictDoNothing({
       target: whaleAlerts.hash,
-    });
+    })
+    .returning();
+
+  return alert ?? null;
 }
 
 export async function getPendingWhaleAlerts(limit = 100) {
@@ -49,4 +53,16 @@ export async function markWhaleAlertsSent(
       })
       .where(eq(whaleAlerts.id, id));
   }
+}
+
+export async function getWhaleAlertById(
+  id: string,
+) {
+  const [alert] = await db
+    .select()
+    .from(whaleAlerts)
+    .where(eq(whaleAlerts.id, id))
+    .limit(1);
+
+  return alert ?? null;
 }

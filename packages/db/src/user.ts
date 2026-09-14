@@ -1,5 +1,4 @@
-import { eq } from "drizzle-orm";
-
+import { eq, and } from "drizzle-orm";
 import { db } from "./client.js";
 
 import {
@@ -210,4 +209,18 @@ export async function upsertTelegramNotification(
     .returning();
 
   return config;
+}
+
+export async function getActiveEthTrackingConfigs() {
+  return db
+    .select()
+    .from(userTrackingConfigs)
+    .where(
+      and(
+        eq(userTrackingConfigs.chain, "ethereum"),
+        eq(userTrackingConfigs.assetType, "native"),
+        eq(userTrackingConfigs.assetSymbol, "ETH"),
+        eq(userTrackingConfigs.enabled, true),
+      ),
+    );
 }

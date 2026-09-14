@@ -1,7 +1,7 @@
 import {
   getLastProcessedBlock,
   setLastProcessedBlock,
-} from "./indexer-state.js";
+} from "../indexer-state.js";
 
 const before = await getLastProcessedBlock();
 

@@ -1,5 +1,10 @@
 import path from "node:path";
+import { createUserWhaleAlert } from "db";
 import { getSmartMoneyScoreForWallet } from "db";
+import { getActiveEthTrackingConfigs } from "db";
+import {
+  getMatchingUserTrackingConfigs,
+} from "./user-whale-detector.js";
 
 import {
   db,
@@ -206,27 +211,60 @@ export async function processBlock(blockNumber: bigint) {
       "ETH",
     );
 
-    if (isWhaleTransaction(tx.value)) {
-      const smartMoneyScore =
-        await getSmartMoneyScoreForWallet(
-          tx.from,
-        );
+ const userTrackingConfigs =
+  await getActiveEthTrackingConfigs();
 
-      const whaleEvent = createWhaleEvent({
-        hash: tx.hash,
-        blockNumber: block.number,
-        fromAddress: tx.from,
-        toAddress: tx.to,
-        valueWei: tx.value,
-        valueEth: formatEther(tx.value),
-        smartMoneyScore,
-      });
+  const matchingUsers =
+    getMatchingUserTrackingConfigs(
+      tx.value,
+      userTrackingConfigs,
+    );
 
-      console.log("\n🐋 WHALE DETECTED!");
-      console.log(whaleEvent);
+  if (matchingUsers.length > 0) {
+    const smartMoneyScore =
+      await getSmartMoneyScoreForWallet(
+        tx.from,
+      );
 
-      await notifyWhale(whaleEvent);
+    const whaleEvent = createWhaleEvent({
+      hash: tx.hash,
+      blockNumber: block.number,
+      fromAddress: tx.from,
+      toAddress: tx.to,
+      valueWei: tx.value,
+      valueEth: formatEther(tx.value),
+      smartMoneyScore,
+    });
+
+    console.log("\n🐋 WHALE DETECTED!");
+    console.log(whaleEvent);
+
+    console.log(
+      `👤 Matching users: ${matchingUsers.length}`,
+    );
+
+    for (const user of matchingUsers) {
+      console.log(
+        `   - ${user.userId}: ≥ ${user.threshold} ETH`,
+      );
     }
+
+    const whaleAlertId = await notifyWhale(whaleEvent);
+
+    if (whaleAlertId) {
+      for (const user of matchingUsers) {
+        await createUserWhaleAlert({
+          userId: user.userId,
+          whaleAlertId,
+          smartMoneyScore,
+        });
+      }
+
+      console.log(
+        `📌 Created ${matchingUsers.length} user whale alerts`,
+      );
+    }
+  }
   }
 
   // 2. Get all ERC-20 Transfer logs from this block

@@ -4,7 +4,7 @@ import {
   tokenPrices,
   tokenTransfers,
   tokens,
-} from "./index.js";
+} from "../index.js";
 
 const LARGE_TX_THRESHOLD_USD = 10_000;
 
