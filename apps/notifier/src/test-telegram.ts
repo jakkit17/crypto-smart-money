@@ -1,14 +1,18 @@
-import { sendTelegramMessage } from "./telegram.js";
+import { sendTelegramAlert } from "./telegram.js";
 
 async function main() {
-  await sendTelegramMessage(
-    "🐋 WhaleRadar test alert\n\nTelegram notifier is working!",
+  await sendTelegramAlert(
+    [
+      "🐋 TEST WHALE ALERT",
+      "",
+      "💰 Value: 42 ETH",
+      "🌐 Ethereum Mainnet",
+    ].join("\n"),
   );
-
-  console.log("✅ Telegram message sent");
 }
 
 main().catch((error) => {
+  console.error("❌ Telegram test failed:");
   console.error(error);
   process.exit(1);
 });

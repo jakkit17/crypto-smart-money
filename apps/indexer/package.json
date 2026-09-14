@@ -10,7 +10,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test:whale": "tsx src/test-whale.ts",
-    "test:whale-detector": "tsx src/test-whale-detector.ts"
+    "test:whale-detector": "tsx src/test-whale-detector.ts",
+    "test:notify": "tsx src/test-notify-whale.ts"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +25,7 @@
   "dependencies": {
     "db": "workspace:*",
     "dotenv": "^17.4.2",
-    "viem": "^2.56.3"
+    "viem": "^2.56.3",
+    "shared": "workspace:*"
   }
 }

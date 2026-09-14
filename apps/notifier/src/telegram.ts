@@ -15,15 +15,15 @@ if (!chatId) {
   throw new Error("TELEGRAM_CHAT_ID is not set");
 }
 
-export async function sendTelegramMessage(
+export async function sendTelegramAlert(
   message: string,
-) {
+): Promise<void> {
   const response = await fetch(
     `https://api.telegram.org/bot${botToken}/sendMessage`,
     {
       method: "POST",
       headers: {
-        "content-type": "application/json",
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         chat_id: chatId,
@@ -40,5 +40,5 @@ export async function sendTelegramMessage(
     );
   }
 
-  return response.json();
+  console.log("📨 Telegram alert sent");
 }

@@ -38,6 +38,9 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
+      shared:
+        specifier: workspace:*
+        version: link:../../packages/shared
       viem:
         specifier: ^2.56.3
         version: 2.56.3(typescript@7.0.2)(zod@4.5.4)
@@ -63,6 +66,12 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(postgres@3.4.9)
+      fastify:
+        specifier: ^5.12.3
+        version: 5.12.3
+      shared:
+        specifier: workspace:*
+        version: link:../../packages/shared
     devDependencies:
       '@types/node':
         specifier: ^24.13.3

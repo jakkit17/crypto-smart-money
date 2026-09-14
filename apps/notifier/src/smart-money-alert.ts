@@ -1,4 +1,4 @@
-import { sendTelegramMessage } from "./telegram.js";
+import { sendTelegramAlert } from "./telegram.js";
 
 import {
   hasSmartMoneyAlert,
@@ -117,7 +117,7 @@ async function main() {
         )}`,
         ].join("\n");
 
-    await sendTelegramMessage(
+    await sendTelegramAlert(
       message,
     );
 

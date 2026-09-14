@@ -19,6 +19,7 @@ import {
 import { mainnet } from "viem/chains";
 import { isWhaleTransaction } from "./whale-detector.js";
 import { createWhaleEvent } from "./whale-event.js";
+import { notifyWhale } from "./notify-whale.js";
 
 config({
   path: path.resolve(process.cwd(), "../../.env"),
@@ -216,6 +217,8 @@ export async function processBlock(blockNumber: bigint) {
 
       console.log("\n🐋 WHALE DETECTED!");
       console.log(whaleEvent);
+
+      await notifyWhale(whaleEvent);
     }
   }
 

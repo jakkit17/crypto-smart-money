@@ -6,6 +6,7 @@ export * from "./schema/token-prices.js";
 export * from "./schema/http-logs.js";
 export * from "./schema/smart-money-alerts.js";
 export * from "./schema/indexer-state.js";
+export * from "./schema/whale-alerts.js";
 export * from "./smart-money.js";
 export * from "./token-metadata.js";
 export * from "./client.js";
