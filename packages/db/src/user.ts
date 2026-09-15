@@ -322,3 +322,41 @@ export async function upsertUserFromAuth(input: {
     timezone: "Asia/Bangkok",
   });
 }
+
+export async function acceptTermsAndCreateUser(input: {
+  authUserId: string;
+  email: string;
+  name: string;
+  termsVersion: string;
+}) {
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(users)
+      .where(
+        eq(
+          users.authUserId,
+          input.authUserId,
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      return existing;
+    }
+
+    const [user] = await tx
+      .insert(users)
+      .values({
+        authUserId: input.authUserId,
+        email: input.email,
+        name: input.name,
+        timezone: "Asia/Bangkok",
+        termsAcceptedAt: new Date(),
+        termsVersion: input.termsVersion,
+      })
+      .returning();
+
+    return user;
+  });
+}

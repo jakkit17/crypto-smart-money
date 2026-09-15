@@ -29,6 +29,12 @@ export const users = pgTable(
       .notNull()
       .default("UTC"),
 
+    termsAcceptedAt: timestamp("terms_accepted_at"),
+    
+    termsVersion: varchar("terms_version", {
+      length: 20,
+    }),
+
     createdAt: timestamp("created_at")
       .defaultNow()
       .notNull(),

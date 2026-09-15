@@ -1,262 +1,418 @@
+
 import { useEffect, useState } from "react";
+
 import { supabase } from "./lib/supabase";
+import {
+  acceptTerms,
+  getMySettings,
+  getMyStatus,
+} from "./lib/api";
+
+import TermsAndConditions from "./components/TermsAndConditions";
+import Settings from "./components/Settings";
+
 import "./App.css";
 
 function App() {
   const [loading, setLoading] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUserEmail(data.session?.user.email ?? null);
-    });
+  const [userEmail, setUserEmail] =
+    useState<string | null>(null);
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user.email ?? null);
-    });
+  const [accountStatus, setAccountStatus] = useState<
+    "checking" | "terms" | "ready"
+  >("checking");
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const [acceptingTerms, setAcceptingTerms] =
+    useState(false);
 
-  async function testBackendAuth() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  /*
+   * --------------------------------------------------
+   * Check whether the Supabase user already has
+   * a local users row in our database.
+   * --------------------------------------------------
+   */
+  async function checkAccountStatus() {
+    try {
+      const result = await getMyStatus();
 
-    if (!session?.access_token) {
-      alert("No Supabase session");
-      return;
-    }
-
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/me`,
-      {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      },
-    );
-
-    const data = await response.json();
-
-    console.log("🔐 Backend auth:", data);
-
-    if (!response.ok) {
-      alert(`Backend auth failed: ${data.error ?? "Unknown error"}`);
-      return;
-    }
-
-    alert(`Backend authenticated:\n${data.authUserId}`);
-  }
-
-  async function testMySettings() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      alert("No Supabase session");
-      return;
-    }
-
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/me/settings`,
-      {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      },
-    );
-
-    const data = await response.json();
-
-    console.log("⚙️ My Settings:", data);
-
-    if (!response.ok) {
-      alert(
-        `Get settings failed:\n${
-          data.error ?? "Unknown error"
-        }`,
+      console.log(
+        "Account status:",
+        result,
       );
-      return;
-    }
 
-    alert(
-      `Settings loaded!\nUser ID: ${data.user.id}`,
-    );
-  }
+      if (result.hasLocalUser) {
+        setAccountStatus("ready");
+      } else {
+        setAccountStatus("terms");
+      }
 
-  async function testMyTracking() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      alert("No Supabase session");
-      return;
-    }
-
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/me/tracking`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          threshold: "10",
-          enabled: true,
-        }),
-      },
-    );
-
-    const data = await response.json();
-
-    console.log("🐋 My Tracking:", data);
-
-    if (!response.ok) {
-      alert(
-        `Tracking update failed:\n${
-          data.error ?? "Unknown error"
-        }`,
+      return result;
+    } catch (error) {
+      console.error(
+        "Failed to check account status:",
+        error,
       );
-      return;
-    }
 
-    alert(
-      `Tracking saved!\nThreshold: ${data.tracking.threshold}`,
-    );
+      /*
+       * If Supabase authentication exists but
+       * the local account does not exist,
+       * the user needs to accept Terms.
+       */
+      setAccountStatus("terms");
+
+      return null;
+    }
   }
 
-  async function testMySmartMoneyRule() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  /*
+   * --------------------------------------------------
+   * Load settings after local account exists.
+   * --------------------------------------------------
+   */
+  async function loadMySettings() {
+    try {
+      const result =
+        await getMySettings();
 
-    if (!session?.access_token) {
-      alert("No Supabase session");
-      return;
-    }
-
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/me/smart-money-rule`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          netFlowWeight: 50,
-          largeTransactionsWeight: 25,
-          activityWeight: 15,
-          positiveFlowWeight: 10,
-          netFlowThresholdUsd: "10000",
-          largeTransactionCount: 2,
-          activityCount: 3,
-          positiveFlowThresholdUsd: "1000",
-          enabled: true,
-        }),
-      },
-    );
-
-    const data = await response.json();
-
-    console.log("🧠 My Smart Money Rule:", data);
-
-    if (!response.ok) {
-      alert(
-        `Smart Money Rule failed:\n${
-          data.error ?? "Unknown error"
-        }`,
+      console.log(
+        "My settings:",
+        result,
       );
-      return;
+    } catch (error) {
+      console.error(
+        "Failed to load settings:",
+        error,
+      );
     }
-
-    alert("Smart Money Rule saved!");
   }
 
+  /*
+   * --------------------------------------------------
+   * Accept Terms
+   *
+   * This calls:
+   *
+   * POST /me/accept-terms
+   *
+   * Backend creates the local users row.
+   * --------------------------------------------------
+   */
+  async function handleAcceptTerms() {
+    try {
+      setAcceptingTerms(true);
+
+      await acceptTerms();
+
+      console.log(
+        "Terms accepted successfully",
+      );
+
+      /*
+       * Local account now exists.
+       */
+      setAccountStatus("ready");
+
+      /*
+       * Load settings for the newly created account.
+       */
+      await loadMySettings();
+    } catch (error) {
+      console.error(
+        "Failed to accept terms:",
+        error,
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "ไม่สามารถสร้าง Account ได้",
+      );
+    } finally {
+      setAcceptingTerms(false);
+    }
+  }
+
+  /*
+   * --------------------------------------------------
+   * Google Login
+   * --------------------------------------------------
+   */
   async function handleGoogleLogin() {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
+      const { error } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo:
+              window.location.origin,
+          },
+        });
 
-    if (error) {
-      console.error("Google login error:", error);
-      alert(error.message);
+      if (error) {
+        console.error(
+          "Google login error:",
+          error,
+        );
+
+        alert(error.message);
+
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error(
+        "Google login error:",
+        error,
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Google login failed",
+      );
+
       setLoading(false);
     }
   }
 
+  /*
+   * --------------------------------------------------
+   * Logout
+   * --------------------------------------------------
+   */
   async function handleLogout() {
-    await supabase.auth.signOut();
-    setUserEmail(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+    } finally {
+      setUserEmail(null);
+      setAccountStatus("ready");
+    }
   }
 
+  /*
+   * --------------------------------------------------
+   * Supabase Auth initialization
+   * --------------------------------------------------
+   */
+  useEffect(() => {
+    let mounted = true;
+
+    /*
+     * Check existing session when the app starts.
+     */
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!mounted) {
+          return;
+        }
+
+        const session =
+          data.session;
+
+        setUserEmail(
+          session?.user.email ?? null,
+        );
+
+        if (!session) {
+          setAccountStatus(
+            "ready",
+          );
+
+          return;
+        }
+
+        /*
+         * IMPORTANT:
+         *
+         * Do NOT call /me/settings first.
+         *
+         * First check whether the local
+         * users row exists.
+         */
+        const status =
+          await checkAccountStatus();
+
+        if (
+          mounted &&
+          status?.hasLocalUser
+        ) {
+          await loadMySettings();
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "Failed to get Supabase session:",
+          error,
+        );
+
+        if (mounted) {
+          setAccountStatus(
+            "ready",
+          );
+        }
+      });
+
+    /*
+     * Listen for future auth changes.
+     */
+    const {
+      data: { subscription },
+    } =
+      supabase.auth.onAuthStateChange(
+        async (
+          _event,
+          session,
+        ) => {
+          if (!mounted) {
+            return;
+          }
+
+          setUserEmail(
+            session?.user.email ??
+              null,
+          );
+
+          if (!session) {
+            setAccountStatus(
+              "ready",
+            );
+
+            return;
+          }
+
+          /*
+           * Check local account first.
+           */
+          const status =
+            await checkAccountStatus();
+
+          if (
+            mounted &&
+            status?.hasLocalUser
+          ) {
+            await loadMySettings();
+          }
+        },
+      );
+
+    return () => {
+      mounted = false;
+
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  /*
+   * --------------------------------------------------
+   * CHECKING
+   * --------------------------------------------------
+   */
+  if (
+    accountStatus ===
+    "checking"
+  ) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        Checking your account...
+      </div>
+    );
+  }
+
+  /*
+   * --------------------------------------------------
+   * TERMS
+   *
+   * IMPORTANT:
+   * This comes BEFORE the userEmail/Dashboard
+   * condition.
+   *
+   * Otherwise userEmail would cause Dashboard
+   * to render before Terms.
+   * --------------------------------------------------
+   */
+  if (
+    accountStatus ===
+    "terms"
+  ) {
+    return (
+      <TermsAndConditions
+        onAccept={
+          handleAcceptTerms
+        }
+        loading={
+          acceptingTerms
+        }
+      />
+    );
+  }
+
+  /*
+   * --------------------------------------------------
+   * DASHBOARD
+   *
+   * Only reachable when:
+   *
+   * accountStatus === "ready"
+   *
+   * and userEmail exists.
+   * --------------------------------------------------
+   */
   if (userEmail) {
     return (
       <main className="auth-page">
         <section className="auth-card">
-          <div className="logo-mark">🐋</div>
+          <div className="logo-mark">
+            🐋
+          </div>
 
-          <h1>Crypto Smart Money</h1>
+          <h1>
+            Crypto Smart Money
+          </h1>
 
           <p className="subtitle">
             Welcome back
           </p>
 
           <div className="user-info">
-            <span>Signed in as</span>
-            <strong>{userEmail}</strong>
+            <span>
+              Signed in as
+            </span>
 
+            <strong>
+              {userEmail}
+            </strong>
 
-            <button
-              type="button"
-              onClick={testBackendAuth}
-            >
-              Test Backend Auth
-            </button>
+            <hr />
 
-            <button
-              type="button"
-              onClick={testMySettings}
-            >
-              Test My Settings
-            </button>
+            <h1>
+              Crypto Smart Money
+            </h1>
 
-            <button
-              type="button"
-              onClick={testMyTracking}
-            >
-              Test My Tracking
-            </button>
+            <Settings />
 
-            <button
-              type="button"
-              onClick={testMySmartMoneyRule}
-            >
-              Test My Smart Money Rule
-            </button>
+            <hr />
 
             <br />
-            
           </div>
-
 
           <button
             type="button"
             className="logout-button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
           >
             Sign out
           </button>
@@ -265,24 +421,38 @@ function App() {
     );
   }
 
+  /*
+   * --------------------------------------------------
+   * LOGIN PAGE
+   * --------------------------------------------------
+   */
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <div className="logo-mark">🐋</div>
+        <div className="logo-mark">
+          🐋
+        </div>
 
-        <h1>Crypto Smart Money</h1>
+        <h1>
+          Crypto Smart Money
+        </h1>
 
         <p className="subtitle">
-          Track whales. Follow smart money.
+          Track whales. Follow
+          smart money.
         </p>
 
         <button
           type="button"
           className="google-button"
-          onClick={handleGoogleLogin}
+          onClick={
+            handleGoogleLogin
+          }
           disabled={loading}
         >
-          <span className="google-icon">G</span>
+          <span className="google-icon">
+            G
+          </span>
 
           {loading
             ? "Connecting..."
@@ -290,11 +460,11 @@ function App() {
         </button>
 
         <p className="terms">
-          By continuing, you agree to our terms and privacy policy.
+          By continuing, you
+          agree to our terms and
+          privacy policy.
         </p>
       </section>
-
-      
     </main>
   );
 }

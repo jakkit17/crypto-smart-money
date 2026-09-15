@@ -54,6 +54,54 @@ async function authenticate(
   };
 }
 
+async function verifySupabaseUser(
+  request: FastifyRequest,
+): Promise<SupabaseAuthenticatedUser> {
+  const authorization =
+    request.headers.authorization;
+
+  if (!authorization?.startsWith("Bearer ")) {
+    throw new Error(
+      "Missing authorization token",
+    );
+  }
+
+  const token = authorization.slice(
+    "Bearer ".length,
+  );
+
+  const { payload } = await jwtVerify(
+    token,
+    supabaseJWKS,
+    {
+      issuer: `${supabaseUrl}/auth/v1`,
+      audience: "authenticated",
+    },
+  );
+
+  if (!payload.sub) {
+    throw new Error(
+      "Invalid authentication token",
+    );
+  }
+
+  return {
+    authUserId: payload.sub,
+    email:
+      typeof payload.email === "string"
+        ? payload.email
+        : "",
+    name:
+      typeof payload.user_metadata === "object" &&
+      payload.user_metadata &&
+      "full_name" in payload.user_metadata &&
+      typeof payload.user_metadata.full_name ===
+        "string"
+        ? payload.user_metadata.full_name
+        : "",
+  };
+}
+
 declare module "fastify" {
   interface FastifyRequest {
     user: AuthenticatedUser | undefined;
@@ -63,6 +111,10 @@ declare module "fastify" {
     authenticate(
       request: FastifyRequest,
     ): Promise<void>;
+
+    authenticateSupabaseUser(
+      request: FastifyRequest,
+    ): Promise<SupabaseAuthenticatedUser>;
   }
 }
 
@@ -75,4 +127,17 @@ export default fp(async (app) => {
       request.user = await authenticate(request);
     },
   );
+
+  app.decorate(
+    "authenticateSupabaseUser",
+    async (request: FastifyRequest) => {
+      return verifySupabaseUser(request);
+    },
+  );
 });
+
+export type SupabaseAuthenticatedUser = {
+  authUserId: string;
+  email: string;
+  name: string;
+};

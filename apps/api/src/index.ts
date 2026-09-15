@@ -7,7 +7,7 @@ import authPlugin from "./plugins/auth.js";
 import { smartMoneyRoutes } from "./routes/smart-money.js";
 import { usersRoutes } from "./routes/users.js";
 
-import { getWhaleTransactions, upsertUserSmartMoneyRule } from "db";
+import { getWhaleTransactions, getUserByAuthUserId, upsertUserSmartMoneyRule } from "db";
 
 const app = Fastify({
   logger: true,
@@ -139,6 +139,50 @@ app.put<{
       success: true,
       smartMoneyRule: rule,
     };
+  },
+);
+
+app.get(
+  "/me/status",
+  {
+    preHandler: async (request, reply) => {
+      try {
+        await app.authenticateSupabaseUser(
+          request,
+        );
+      } catch {
+        return reply.code(401).send({
+          success: false,
+          error: "Unauthorized",
+        });
+      }
+    },
+  },
+  async (request, reply) => {
+    try {
+      const authUser =
+        await app.authenticateSupabaseUser(
+          request,
+        );
+
+      const user =
+        await getUserByAuthUserId(
+          authUser.authUserId,
+        );
+
+      return {
+        success: true,
+        hasLocalUser: Boolean(user),
+        user: user ?? null,
+      };
+    } catch (error) {
+      request.log.error(error);
+
+      return reply.code(401).send({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
   },
 );
 
