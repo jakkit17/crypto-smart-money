@@ -1,8 +1,8 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "./client.js";
+import { users } from "./schema/users.js";
 
 import {
-  users,
   userTrackingConfigs,
   userSmartMoneyRules,
   notificationConfigs,
@@ -10,15 +10,17 @@ import {
 
 export async function createUser(input: {
   email: string;
-  name: string;
+  name?: string | null;
   timezone?: string;
+  authUserId?: string;
 }) {
   const [user] = await db
     .insert(users)
     .values({
       email: input.email,
-      name: input.name,
+      name: input.name ?? "",
       timezone: input.timezone ?? "UTC",
+      authUserId: input.authUserId ?? null,
     })
     .returning();
 
@@ -290,4 +292,33 @@ export async function getTelegramNotificationForUser(
     .limit(1);
 
   return notification ?? null;
+}
+
+export async function getUserByAuthUserId(authUserId: string) {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.authUserId, authUserId))
+    .limit(1);
+
+  return user ?? null;
+}
+
+export async function upsertUserFromAuth(input: {
+  authUserId: string;
+  email: string;
+  name?: string | null;
+}) {
+  const existing = await getUserByAuthUserId(input.authUserId);
+
+  if (existing) {
+    return existing;
+  }
+
+  return createUser({
+    authUserId: input.authUserId,
+    email: input.email,
+    name: input.name,
+    timezone: "Asia/Bangkok",
+  });
 }

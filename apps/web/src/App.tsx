@@ -22,6 +22,165 @@ function App() {
     };
   }, []);
 
+  async function testBackendAuth() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      alert("No Supabase session");
+      return;
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/me`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    const data = await response.json();
+
+    console.log("🔐 Backend auth:", data);
+
+    if (!response.ok) {
+      alert(`Backend auth failed: ${data.error ?? "Unknown error"}`);
+      return;
+    }
+
+    alert(`Backend authenticated:\n${data.authUserId}`);
+  }
+
+  async function testMySettings() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      alert("No Supabase session");
+      return;
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/me/settings`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+
+    const data = await response.json();
+
+    console.log("⚙️ My Settings:", data);
+
+    if (!response.ok) {
+      alert(
+        `Get settings failed:\n${
+          data.error ?? "Unknown error"
+        }`,
+      );
+      return;
+    }
+
+    alert(
+      `Settings loaded!\nUser ID: ${data.user.id}`,
+    );
+  }
+
+  async function testMyTracking() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      alert("No Supabase session");
+      return;
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/me/tracking`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          threshold: "10",
+          enabled: true,
+        }),
+      },
+    );
+
+    const data = await response.json();
+
+    console.log("🐋 My Tracking:", data);
+
+    if (!response.ok) {
+      alert(
+        `Tracking update failed:\n${
+          data.error ?? "Unknown error"
+        }`,
+      );
+      return;
+    }
+
+    alert(
+      `Tracking saved!\nThreshold: ${data.tracking.threshold}`,
+    );
+  }
+
+  async function testMySmartMoneyRule() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      alert("No Supabase session");
+      return;
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/me/smart-money-rule`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          netFlowWeight: 50,
+          largeTransactionsWeight: 25,
+          activityWeight: 15,
+          positiveFlowWeight: 10,
+          netFlowThresholdUsd: "10000",
+          largeTransactionCount: 2,
+          activityCount: 3,
+          positiveFlowThresholdUsd: "1000",
+          enabled: true,
+        }),
+      },
+    );
+
+    const data = await response.json();
+
+    console.log("🧠 My Smart Money Rule:", data);
+
+    if (!response.ok) {
+      alert(
+        `Smart Money Rule failed:\n${
+          data.error ?? "Unknown error"
+        }`,
+      );
+      return;
+    }
+
+    alert("Smart Money Rule saved!");
+  }
+
   async function handleGoogleLogin() {
     setLoading(true);
 
@@ -59,7 +218,40 @@ function App() {
           <div className="user-info">
             <span>Signed in as</span>
             <strong>{userEmail}</strong>
+
+
+            <button
+              type="button"
+              onClick={testBackendAuth}
+            >
+              Test Backend Auth
+            </button>
+
+            <button
+              type="button"
+              onClick={testMySettings}
+            >
+              Test My Settings
+            </button>
+
+            <button
+              type="button"
+              onClick={testMyTracking}
+            >
+              Test My Tracking
+            </button>
+
+            <button
+              type="button"
+              onClick={testMySmartMoneyRule}
+            >
+              Test My Smart Money Rule
+            </button>
+
+            <br />
+            
           </div>
+
 
           <button
             type="button"
@@ -101,6 +293,8 @@ function App() {
           By continuing, you agree to our terms and privacy policy.
         </p>
       </section>
+
+      
     </main>
   );
 }

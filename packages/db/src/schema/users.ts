@@ -13,6 +13,8 @@ export const users = pgTable(
       .defaultRandom()
       .primaryKey(),
 
+    authUserId: uuid("auth_user_id").unique(),
+
     email: varchar("email", {
       length: 320,
     }).notNull(),
