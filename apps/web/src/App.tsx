@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 import { supabase } from "./lib/supabase";
@@ -28,8 +27,7 @@ function App() {
 
   /*
    * --------------------------------------------------
-   * Check whether the Supabase user already has
-   * a local users row in our database.
+   * Check local account status
    * --------------------------------------------------
    */
   async function checkAccountStatus() {
@@ -54,11 +52,6 @@ function App() {
         error,
       );
 
-      /*
-       * If Supabase authentication exists but
-       * the local account does not exist,
-       * the user needs to accept Terms.
-       */
       setAccountStatus("terms");
 
       return null;
@@ -67,7 +60,7 @@ function App() {
 
   /*
    * --------------------------------------------------
-   * Load settings after local account exists.
+   * Load settings
    * --------------------------------------------------
    */
   async function loadMySettings() {
@@ -90,12 +83,6 @@ function App() {
   /*
    * --------------------------------------------------
    * Accept Terms
-   *
-   * This calls:
-   *
-   * POST /me/accept-terms
-   *
-   * Backend creates the local users row.
    * --------------------------------------------------
    */
   async function handleAcceptTerms() {
@@ -108,14 +95,8 @@ function App() {
         "Terms accepted successfully",
       );
 
-      /*
-       * Local account now exists.
-       */
       setAccountStatus("ready");
 
-      /*
-       * Load settings for the newly created account.
-       */
       await loadMySettings();
     } catch (error) {
       console.error(
@@ -186,7 +167,10 @@ function App() {
     try {
       await supabase.auth.signOut();
     } catch (error) {
-      console.error("Failed to sign out:", error);
+      console.error(
+        "Failed to sign out:",
+        error,
+      );
     } finally {
       setUserEmail(null);
       setAccountStatus("ready");
@@ -201,9 +185,6 @@ function App() {
   useEffect(() => {
     let mounted = true;
 
-    /*
-     * Check existing session when the app starts.
-     */
     supabase.auth
       .getSession()
       .then(async ({ data }) => {
@@ -226,14 +207,6 @@ function App() {
           return;
         }
 
-        /*
-         * IMPORTANT:
-         *
-         * Do NOT call /me/settings first.
-         *
-         * First check whether the local
-         * users row exists.
-         */
         const status =
           await checkAccountStatus();
 
@@ -257,9 +230,6 @@ function App() {
         }
       });
 
-    /*
-     * Listen for future auth changes.
-     */
     const {
       data: { subscription },
     } =
@@ -285,9 +255,6 @@ function App() {
             return;
           }
 
-          /*
-           * Check local account first.
-           */
           const status =
             await checkAccountStatus();
 
@@ -317,29 +284,29 @@ function App() {
     "checking"
   ) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        Checking your account...
-      </div>
+      <main className="auth-page">
+        <section className="auth-card checking-card">
+          <div className="logo-mark">
+            🐋
+          </div>
+
+          <div className="loading-spinner" />
+
+          <h1>
+            Crypto Smart Money
+          </h1>
+
+          <p className="subtitle">
+            Checking your account...
+          </p>
+        </section>
+      </main>
     );
   }
 
   /*
    * --------------------------------------------------
    * TERMS
-   *
-   * IMPORTANT:
-   * This comes BEFORE the userEmail/Dashboard
-   * condition.
-   *
-   * Otherwise userEmail would cause Dashboard
-   * to render before Terms.
    * --------------------------------------------------
    */
   if (
@@ -361,51 +328,71 @@ function App() {
   /*
    * --------------------------------------------------
    * DASHBOARD
-   *
-   * Only reachable when:
-   *
-   * accountStatus === "ready"
-   *
-   * and userEmail exists.
    * --------------------------------------------------
    */
   if (userEmail) {
     return (
-      <main className="auth-page">
-        <section className="auth-card">
-          <div className="logo-mark">
-            🐋
+      <main className="auth-page dashboard-page">
+        <section className="auth-card dashboard-card">
+
+          <div className="dashboard-topbar">
+            <div className="brand">
+              <div className="logo-mark small">
+                🐋
+              </div>
+
+              <div>
+                <strong>
+                  Crypto Smart Money
+                </strong>
+
+                <span>
+                  Smart money analytics
+                </span>
+              </div>
+            </div>
+
+            <div className="status-pill">
+              <span />
+              Connected
+            </div>
           </div>
 
-          <h1>
-            Crypto Smart Money
-          </h1>
-
-          <p className="subtitle">
-            Welcome back
-          </p>
-
-          <div className="user-info">
-            <span>
-              Signed in as
+          <div className="dashboard-intro">
+            <span className="settings-eyebrow">
+              ACCOUNT
             </span>
 
-            <strong>
-              {userEmail}
-            </strong>
-
-            <hr />
-
             <h1>
-              Crypto Smart Money
+              Welcome back
             </h1>
 
-            <Settings />
-
-            <hr />
-
-            <br />
+            <p>
+              Manage your Smart Money
+              detection and notification
+              preferences.
+            </p>
           </div>
+
+          <div className="account-banner">
+            <div className="account-avatar">
+              {userEmail
+                .charAt(0)
+                .toUpperCase()}
+            </div>
+
+            <div>
+              <span>
+                Signed in as
+              </span>
+
+              <strong>
+                {userEmail}
+              </strong>
+            </div>
+          </div>
+
+          <Settings />
 
           <button
             type="button"
@@ -414,6 +401,10 @@ function App() {
               handleLogout
             }
           >
+            <span>
+              ↪
+            </span>
+
             Sign out
           </button>
         </section>
@@ -427,10 +418,18 @@ function App() {
    * --------------------------------------------------
    */
   return (
-    <main className="auth-page">
-      <section className="auth-card">
+    <main className="auth-page login-page">
+      <section className="auth-card login-card">
+
+        <div className="login-glow" />
+
         <div className="logo-mark">
           🐋
+        </div>
+
+        <div className="login-badge">
+          <span />
+          Smart Money Intelligence
         </div>
 
         <h1>
@@ -438,9 +437,62 @@ function App() {
         </h1>
 
         <p className="subtitle">
-          Track whales. Follow
-          smart money.
+          Track whales.
+          <br />
+          Follow smart money.
+          <br />
+          Make better crypto decisions.
         </p>
+
+        <div className="feature-list">
+          <div className="feature-item">
+            <span className="feature-icon">
+              🐋
+            </span>
+
+            <div>
+              <strong>
+                Whale Tracking
+              </strong>
+
+              <span>
+                Monitor large wallet movements
+              </span>
+            </div>
+          </div>
+
+          <div className="feature-item">
+            <span className="feature-icon">
+              🧠
+            </span>
+
+            <div>
+              <strong>
+                Smart Money Detection
+              </strong>
+
+              <span>
+                Identify high-value wallet behavior
+              </span>
+            </div>
+          </div>
+
+          <div className="feature-item">
+            <span className="feature-icon">
+              🔔
+            </span>
+
+            <div>
+              <strong>
+                Telegram Alerts
+              </strong>
+
+              <span>
+                Get notified when signals appear
+              </span>
+            </div>
+          </div>
+        </div>
 
         <button
           type="button"
@@ -460,9 +512,8 @@ function App() {
         </button>
 
         <p className="terms">
-          By continuing, you
-          agree to our terms and
-          privacy policy.
+          By continuing, you agree to
+          our terms and privacy policy.
         </p>
       </section>
     </main>
